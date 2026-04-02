@@ -826,7 +826,8 @@ PlayerSettings:
   webGLCloseOnQuit: 0
   webWasm2023: 0
   webEnableSubmoduleStrippingCompatibility: 0
-  scriptingDefineSymbols: {}
+  scriptingDefineSymbols:
+    Standalone: SENTIS_ANALYTICS_ENABLED
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend:
@@ -925,11 +926,11 @@ PlayerSettings:
   captureStartupLogs: {}
   activeInputHandler: 2
   windowsGamepadBackendHint: 0
-  cloudProjectId: 30f5e6b1-2114-4568-a911-1f0b2cdfa085
+  cloudProjectId: b1db44db-1d89-4da8-b771-86a2409b361b
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
-  projectName: 3D Game Base
-  organizationId: alejandro_c37
+  projectName: My project
+  organizationId: elyortch
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0
   hmiLoadingImage: {fileID: 0}
