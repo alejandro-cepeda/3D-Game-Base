@@ -1075,10 +1075,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemySpawner
   enemyPrefab: {fileID: 3278636495363590258, guid: f9a41dfcab7314a1db78a8c962c32036, type: 3}
-  maxAlive: 1
-  spawnIntervalSeconds: 2
   spawnRadius: 18
   minSpawnDistanceFromPlayer: 6
+  initialMaxAlive: 5
+  initialSpawnInterval: 3
+  difficultyIncreaseInterval: 30
+  maxAliveIncrease: 2
+  spawnIntervalReduction: 0.2
+  minSpawnInterval: 0.5
 --- !u!4 &1658376960
 Transform:
   m_ObjectHideFlags: 0
