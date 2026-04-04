@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: 6146182305092683098}
   - component: {fileID: 4040199818263065504}
   - component: {fileID: 2731693118384803865}
+  - component: {fileID: 1841882422980498908}
   m_Layer: 0
   m_Name: Capsule
   m_TagString: Untagged
@@ -44,7 +45,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3278636495363590258}
-  m_Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: 537426791416092083, guid: 6a00e12392f57764e85ff7cf7c3398a0, type: 3}
 --- !u!23 &1316216921464089952
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -52,7 +53,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3278636495363590258}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -70,7 +71,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: -8205024132658386507, guid: 911b480f53ccb49409f817cf92ff6425, type: 3}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -156,6 +157,12 @@ MonoBehaviour:
   attackCooldownSeconds: 1
   scoreValue: 1
   debugAttacks: 0
+  walkSpeed: 2.5
+  runSpeed: 5
+  sprintSpeed: 7.5
+  runDistance: 12
+  sprintDistance: 5
+  animator: {fileID: 0}
 --- !u!114 &2731693118384803865
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -170,3 +177,25 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Health
   maxHealth: 50
   debugEvents: 0
+--- !u!95 &1841882422980498908
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3278636495363590258}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 0}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
