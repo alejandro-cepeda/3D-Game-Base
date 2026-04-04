@@ -4,11 +4,28 @@ using UnityEngine.AI;
 [RequireComponent(typeof(NavMeshAgent))]
 public sealed class EnemyController : MonoBehaviour
 {
+    private enum SpeedState { Walking, Running, Sprinting }
+
+    [Header("Combat Settings")]
     [SerializeField] private int touchDamage = 10;
     [SerializeField] private float attackRange = 1.4f;
     [SerializeField] private float attackCooldownSeconds = 1.0f;
     [SerializeField] private int scoreValue = 1;
     [SerializeField] private bool debugAttacks;
+
+    [Header("Proximity Speed Settings")]
+    [SerializeField] private float walkSpeed = 2.5f;
+    [SerializeField] private float runSpeed = 5.0f;
+    [SerializeField] private float sprintSpeed = 7.5f; // Max player speed is 8.0
+    [Space]
+    [SerializeField] private float runDistance = 12f;    // Distance to start running
+    [SerializeField] private float sprintDistance = 5f; // Distance to start sprinting
+
+    [Header("Animation")]
+    [SerializeField] private Animator? animator;
+    // Animation hashes for performance (better than strings)
+    private static readonly int SpeedStateHash = Animator.StringToHash("SpeedState");
+    private static readonly int AttackTriggerHash = Animator.StringToHash("Attack");
 
     private NavMeshAgent agent = null!;
     private Transform? target;
@@ -21,6 +38,8 @@ public sealed class EnemyController : MonoBehaviour
         agent = GetComponent<NavMeshAgent>();
         selfHealth = GetComponent<Health>();
 
+        if (animator == null) animator = GetComponentInChildren<Animator>();
+
         if (GetComponent<EnemyHealthBar>() == null)
         {
             gameObject.AddComponent<EnemyHealthBar>();
@@ -29,18 +48,12 @@ public sealed class EnemyController : MonoBehaviour
 
     private void OnEnable()
     {
-        if (selfHealth != null)
-        {
-            selfHealth.Died += OnDied;
-        }
+        if (selfHealth != null) selfHealth.Died += OnDied;
     }
 
     private void OnDisable()
     {
-        if (selfHealth != null)
-        {
-            selfHealth.Died -= OnDied;
-        }
+        if (selfHealth != null) selfHealth.Died -= OnDied;
     }
 
     private void Start()
@@ -55,11 +68,9 @@ public sealed class EnemyController : MonoBehaviour
 
     private void Update()
     {
-        if (target == null || selfHealth == null || selfHealth.IsDead)
-        {
-            return;
-        }
+        if (target == null || selfHealth == null || selfHealth.IsDead) return;
 
+        HandleProximitySpeed();
         agent.SetDestination(target.position);
 
         float distance = Vector3.Distance(transform.position, target.position);
@@ -69,33 +80,56 @@ public sealed class EnemyController : MonoBehaviour
         }
     }
 
+    private void HandleProximitySpeed()
+    {
+        float distance = Vector3.Distance(transform.position, target.position);
+        SpeedState currentState;
+
+        // Threshold Logic
+        if (distance <= sprintDistance)
+        {
+            agent.speed = sprintSpeed;
+            currentState = SpeedState.Sprinting;
+        }
+        else if (distance <= runDistance)
+        {
+            agent.speed = runSpeed;
+            currentState = SpeedState.Running;
+        }
+        else
+        {
+            agent.speed = walkSpeed;
+            currentState = SpeedState.Walking;
+        }
+
+        // Update Animator: 0 = Walk, 1 = Run, 2 = Sprint
+        if (animator != null)
+        {
+            animator.SetInteger(SpeedStateHash, (int)currentState);
+        }
+    }
+
     private void TryAttack()
     {
-        if (Time.time < nextAttackTime)
-        {
-            return;
-        }
+        if (Time.time < nextAttackTime) return;
 
         nextAttackTime = Time.time + attackCooldownSeconds;
 
+        if (animator != null)
+        {
+            animator.SetTrigger(AttackTriggerHash);
+        }
+
         if (targetHealth != null)
         {
-            if (debugAttacks)
-            {
-                Debug.Log($"[{name}] Attacking player for {touchDamage}.", this);
-            }
-
+            if (debugAttacks) Debug.Log($"[{name}] Attacking player.", this);
             targetHealth.TakeDamage(touchDamage);
         }
     }
 
     private void OnDied(Health health)
     {
-        if (GameManager.Instance != null)
-        {
-            GameManager.Instance.AddScore(scoreValue);
-        }
-
+        if (GameManager.Instance != null) GameManager.Instance.AddScore(scoreValue);
         Destroy(gameObject);
     }
 }
