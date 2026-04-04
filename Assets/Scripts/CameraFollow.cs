@@ -7,6 +7,15 @@ public class CameraFollow : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (target == null)
+        {
+            PlayerMovement? player = FindFirstObjectByType<PlayerMovement>();
+            if (player != null)
+            {
+                target = player.transform;
+            }
+        }
+
         if (target != null)
         {
             transform.position = target.position + offset;

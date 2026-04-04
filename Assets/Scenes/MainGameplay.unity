@@ -639,7 +639,7 @@ MonoBehaviour:
   groundLayers:
     serializedVersion: 2
     m_Bits: 4294967295
-  animator: {fileID: 0}
+  animator: {fileID: 993881743}
 --- !u!54 &993881739
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -688,6 +688,90 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &993881741
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 993881737}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0fbb5711590d449d5b23df17e3562916, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerCombat
+  startingWeapon: 1
+  damage: 25
+  meleeRange: 3
+  gunRange: 120
+  bulletPrefab: {fileID: 1977346535183261218, guid: 8407b2b23a39544729eff9eb99bc9d0c, type: 3}
+  muzzle: {fileID: 1135376035}
+  bulletSpeed: 45
+  bulletPierceCount: 0
+  gunAimUsesMouse: 1
+  gunAimMaxDistance: 200
+  fireRateSeconds: 0.2
+  hitLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  debugHits: 0
+  originHeight: 1.4
+  aimAtMousePosition: 1
+--- !u!114 &993881742
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 993881737}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fae418933018480ea6f5c537aacde6a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Health
+  maxHealth: 100
+  debugEvents: 1
+--- !u!95 &993881743 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: -4748361991329772099, guid: a41d5c10b6b384100a752d8132791ac9, type: 3}
+  m_PrefabInstance: {fileID: 1616042992}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &993881744 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -3910990755373119420, guid: a41d5c10b6b384100a752d8132791ac9, type: 3}
+  m_PrefabInstance: {fileID: 1616042992}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &1135376034
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1135376035}
+  m_Layer: 0
+  m_Name: Muzzle
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1135376035
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1135376034}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.014199972, y: 1.112, z: 0.4598}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 993881744}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1415378238
 GameObject:
   m_ObjectHideFlags: 0
@@ -938,6 +1022,9 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: -3910990755373119420, guid: a41d5c10b6b384100a752d8132791ac9, type: 3}
+      insertIndex: 0
+      addedObject: {fileID: 1135376035}
     - targetCorrespondingSourceObject: {fileID: 4276547074546171535, guid: a41d5c10b6b384100a752d8132791ac9, type: 3}
       insertIndex: -1
       addedObject: {fileID: 591932362}
@@ -951,7 +1038,66 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 8771091787928289351, guid: a41d5c10b6b384100a752d8132791ac9, type: 3}
       insertIndex: -1
       addedObject: {fileID: 993881738}
+    - targetCorrespondingSourceObject: {fileID: 8771091787928289351, guid: a41d5c10b6b384100a752d8132791ac9, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 993881742}
+    - targetCorrespondingSourceObject: {fileID: 8771091787928289351, guid: a41d5c10b6b384100a752d8132791ac9, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 993881741}
   m_SourcePrefab: {fileID: -4161369568681901532, guid: a41d5c10b6b384100a752d8132791ac9, type: 3}
+--- !u!1 &1658376958
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1658376960}
+  - component: {fileID: 1658376959}
+  m_Layer: 0
+  m_Name: EnemySpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1658376959
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1658376958}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 36ecb3aca6143465699e9080e50f8fed, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemySpawner
+  enemyPrefab: {fileID: 3278636495363590258, guid: f9a41dfcab7314a1db78a8c962c32036, type: 3}
+  spawnRadius: 18
+  minSpawnDistanceFromPlayer: 6
+  initialMaxAlive: 5
+  initialSpawnInterval: 3
+  difficultyIncreaseInterval: 30
+  maxAliveIncrease: 2
+  spawnIntervalReduction: 0.2
+  minSpawnInterval: 0.5
+--- !u!4 &1658376960
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1658376958}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &1856530227 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4276547074546171535, guid: a41d5c10b6b384100a752d8132791ac9, type: 3}
@@ -970,6 +1116,7 @@ GameObject:
   - component: {fileID: 1920512167}
   - component: {fileID: 1920512166}
   - component: {fileID: 1920512170}
+  - component: {fileID: 1920512171}
   m_Layer: 0
   m_Name: Floor
   m_TagString: Untagged
@@ -1092,6 +1239,38 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 10, y: 0, z: 10}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &1920512171
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1920512165}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a5ac11cc976e418e8d13136b07e1f52, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.AI.Navigation::Unity.AI.Navigation.NavMeshSurface
+  m_SerializedVersion: 0
+  m_AgentTypeID: 0
+  m_CollectObjects: 0
+  m_Size: {x: 10, y: 10, z: 10}
+  m_Center: {x: 0, y: 2, z: 0}
+  m_LayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_UseGeometry: 0
+  m_DefaultArea: 0
+  m_GenerateLinks: 0
+  m_IgnoreNavMeshAgent: 1
+  m_IgnoreNavMeshObstacle: 1
+  m_OverrideTileSize: 0
+  m_TileSize: 256
+  m_OverrideVoxelSize: 0
+  m_VoxelSize: 0.16666667
+  m_MinRegionArea: 2
+  m_NavMeshData: {fileID: 23800000, guid: 463165e919af14f638aa597d09771c5b, type: 2}
+  m_BuildHeightMesh: 0
 --- !u!1 &2059795055
 GameObject:
   m_ObjectHideFlags: 0
@@ -1213,3 +1392,4 @@ SceneRoots:
   - {fileID: 1920512169}
   - {fileID: 1415378239}
   - {fileID: 1616042992}
+  - {fileID: 1658376960}
