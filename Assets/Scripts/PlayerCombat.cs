@@ -8,7 +8,28 @@ public sealed class PlayerCombat : MonoBehaviour
         Gun
     }
 
+    public enum WeaponId
+    {
+        Pistol,
+        Shotgun,
+        AssaultRifle
+    }
+
+    [System.Serializable]
+    private struct WeaponStats
+    {
+        public int damage;
+        public float fireRateSeconds;
+        public float bulletSpeed;
+        public float bulletLifetimeSeconds;
+        public int pierceCount;
+
+        public int pellets;
+        public float spreadDegrees;
+    }
+
     [SerializeField] private WeaponType startingWeapon = WeaponType.Gun;
+    [SerializeField] private WeaponId startingGun = WeaponId.Pistol;
     [SerializeField] private int damage = 25;
     [SerializeField] private float meleeRange = 3f;
     [SerializeField] private float gunRange = 120f;
@@ -16,8 +37,10 @@ public sealed class PlayerCombat : MonoBehaviour
     [SerializeField] private Transform? muzzle;
     [SerializeField] private float bulletSpeed = 45f;
     [SerializeField] private int bulletPierceCount;
+    [SerializeField] private float bulletLifetimeSeconds = 2.5f;
     [SerializeField] private bool gunAimUsesMouse = true;
     [SerializeField] private float gunAimMaxDistance = 200f;
+    [SerializeField] private bool gunAimOnMuzzleHeightPlane = true;
     [SerializeField] private float fireRateSeconds = 0.2f;
     [SerializeField] private LayerMask hitLayers = ~0;
     [SerializeField] private bool debugHits;
@@ -25,6 +48,7 @@ public sealed class PlayerCombat : MonoBehaviour
     [SerializeField] private bool aimAtMousePosition = true;
 
     private float nextFireTime;
+    private WeaponId currentGun;
 
     private void Update()
     {
@@ -37,6 +61,12 @@ public sealed class PlayerCombat : MonoBehaviour
         {
             TryAttack();
         }
+    }
+
+    private void Awake()
+    {
+        currentGun = startingGun;
+        ApplyGunStats(currentGun);
     }
 
     private void TryAttack()
@@ -56,25 +86,57 @@ public sealed class PlayerCombat : MonoBehaviour
             if (gunAimUsesMouse && aimCamera != null)
             {
                 Ray aimRay = aimCamera.ScreenPointToRay(Input.mousePosition);
-                Vector3 aimPoint = aimRay.origin + aimRay.direction * gunAimMaxDistance;
-                if (Physics.Raycast(aimRay, out RaycastHit aimHit, gunAimMaxDistance, hitLayers, QueryTriggerInteraction.Ignore))
+
+                Vector3 aimDirection = aimRay.direction;
+
+                if (gunAimOnMuzzleHeightPlane)
                 {
-                    aimPoint = aimHit.point;
+                    Plane plane = new Plane(Vector3.up, muzzle.position);
+                    if (plane.Raycast(aimRay, out float enter))
+                    {
+                        Vector3 pointOnPlane = aimRay.GetPoint(enter);
+                        Vector3 dir = pointOnPlane - muzzle.position;
+                        if (dir.sqrMagnitude > 0.0001f)
+                        {
+                            aimDirection = dir.normalized;
+                        }
+                    }
                 }
 
-                Vector3 dir = aimPoint - muzzle.position;
-                if (dir.sqrMagnitude > 0.0001f)
+                rotation = Quaternion.LookRotation(aimDirection, Vector3.up);
+            }
+
+            WeaponStats stats = GetCurrentStats();
+            int pellets = Mathf.Max(1, stats.pellets);
+            float spread = stats.spreadDegrees;
+
+            for (int i = 0; i < pellets; i++)
+            {
+                Quaternion pelletRotation = rotation;
+                if (spread > 0f)
                 {
-                    rotation = Quaternion.LookRotation(dir.normalized, Vector3.up);
+                    float yaw = Random.Range(-spread, spread);
+                    pelletRotation = rotation * Quaternion.Euler(0f, yaw, 0f);
+                }
+
+                Vector3 spawnPos = muzzle.position + (pelletRotation * Vector3.forward * 0.35f);
+                BulletProjectile projectile = Instantiate(bulletPrefab, spawnPos, pelletRotation);
+                projectile.Initialize(gameObject, damage, bulletSpeed, bulletPierceCount);
+                projectile.SetLifetime(bulletLifetimeSeconds);
+
+                if (currentGun == WeaponId.Shotgun)
+                {
+                    projectile.ConfigureVisuals(2.5f, true, new Color(1f, 0.8f, 0.2f, 1f));
+                }
+                else if (currentGun == WeaponId.AssaultRifle)
+                {
+                    projectile.ConfigureVisuals(1.5f, true, new Color(0.6f, 0.9f, 1f, 1f));
                 }
             }
 
-            BulletProjectile projectile = Instantiate(bulletPrefab, muzzle.position, rotation);
-            projectile.Initialize(gameObject, damage, bulletSpeed, bulletPierceCount);
-
             if (debugHits)
             {
-                Debug.Log($"[PlayerCombat] Fired bullet. Damage: {damage} Speed: {bulletSpeed} Pierce: {bulletPierceCount}", this);
+                Debug.Log($"[PlayerCombat] Fired {pellets} projectile(s) with {currentGun}. Damage: {damage} Speed: {bulletSpeed} Lifetime: {bulletLifetimeSeconds} Pierce: {bulletPierceCount}", this);
             }
 
             return;
@@ -170,5 +232,77 @@ public sealed class PlayerCombat : MonoBehaviour
         }
 
         health.TakeDamage(damage);
+    }
+
+    public void AddBulletLifetime(float additionalSeconds)
+    {
+        bulletLifetimeSeconds = Mathf.Max(0.1f, bulletLifetimeSeconds + additionalSeconds);
+    }
+
+    public WeaponId CurrentGun => currentGun;
+
+    public void SetGun(WeaponId weapon)
+    {
+        currentGun = weapon;
+        ApplyGunStats(currentGun);
+        nextFireTime = 0f;
+
+        if (debugHits)
+        {
+            Debug.Log($"[PlayerCombat] Switched gun to {currentGun}. Damage: {damage} FireRateSeconds: {fireRateSeconds} BulletSpeed: {bulletSpeed} Lifetime: {bulletLifetimeSeconds}", this);
+        }
+    }
+
+    private WeaponStats GetCurrentStats()
+    {
+        return currentGun switch
+        {
+            WeaponId.Pistol => new WeaponStats { pellets = 1, spreadDegrees = 0f },
+            WeaponId.Shotgun => new WeaponStats { pellets = 6, spreadDegrees = 14f },
+            _ => new WeaponStats { pellets = 1, spreadDegrees = 2.0f }
+        };
+    }
+
+    private void ApplyGunStats(WeaponId weapon)
+    {
+        WeaponStats stats = weapon switch
+        {
+            WeaponId.Pistol => new WeaponStats
+            {
+                damage = 25,
+                fireRateSeconds = 0.5f,
+                bulletSpeed = 55f,
+                bulletLifetimeSeconds = 2.5f,
+                pierceCount = 0,
+                pellets = 1,
+                spreadDegrees = 0f
+            },
+            WeaponId.Shotgun => new WeaponStats
+            {
+                damage = 20,
+                fireRateSeconds = 1.0f,
+                bulletSpeed = 45f,
+                bulletLifetimeSeconds = 0.75f,
+                pierceCount = 0,
+                pellets = 6,
+                spreadDegrees = 14f
+            },
+            _ => new WeaponStats
+            {
+                damage = 20,
+                fireRateSeconds = 0.25f,
+                bulletSpeed = 70f,
+                bulletLifetimeSeconds = 3.0f,
+                pierceCount = 0,
+                pellets = 1,
+                spreadDegrees = 2.0f
+            }
+        };
+
+        damage = stats.damage;
+        fireRateSeconds = stats.fireRateSeconds;
+        bulletSpeed = stats.bulletSpeed;
+        bulletLifetimeSeconds = stats.bulletLifetimeSeconds;
+        bulletPierceCount = stats.pierceCount;
     }
 }

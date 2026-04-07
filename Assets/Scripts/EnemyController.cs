@@ -4,8 +4,6 @@ using UnityEngine.AI;
 [RequireComponent(typeof(NavMeshAgent))]
 public sealed class EnemyController : MonoBehaviour
 {
-    private enum SpeedState { Walking, Running, Sprinting }
-
     [Header("Combat Settings")]
     [SerializeField] private int touchDamage = 10;
     [SerializeField] private float attackRange = 1.4f;
@@ -24,7 +22,7 @@ public sealed class EnemyController : MonoBehaviour
     [Header("Animation")]
     [SerializeField] private Animator? animator;
     // Animation hashes for performance (better than strings)
-    private static readonly int SpeedStateHash = Animator.StringToHash("SpeedState");
+    private static readonly int BlendHash = Animator.StringToHash("Blend");
     private static readonly int AttackTriggerHash = Animator.StringToHash("Attack");
 
     private NavMeshAgent agent = null!;
@@ -43,6 +41,16 @@ public sealed class EnemyController : MonoBehaviour
         if (GetComponent<EnemyHealthBar>() == null)
         {
             gameObject.AddComponent<EnemyHealthBar>();
+        }
+
+        if (GetComponent<EnemyHitFlash>() == null)
+        {
+            gameObject.AddComponent<EnemyHitFlash>();
+        }
+
+        if (GetComponent<EnemyKnockback>() == null)
+        {
+            gameObject.AddComponent<EnemyKnockback>();
         }
     }
 
@@ -83,29 +91,29 @@ public sealed class EnemyController : MonoBehaviour
     private void HandleProximitySpeed()
     {
         float distance = Vector3.Distance(transform.position, target.position);
-        SpeedState currentState;
 
         // Threshold Logic
         if (distance <= sprintDistance)
         {
             agent.speed = sprintSpeed;
-            currentState = SpeedState.Sprinting;
         }
         else if (distance <= runDistance)
         {
             agent.speed = runSpeed;
-            currentState = SpeedState.Running;
         }
         else
         {
             agent.speed = walkSpeed;
-            currentState = SpeedState.Walking;
         }
 
-        // Update Animator: 0 = Walk, 1 = Run, 2 = Sprint
+        // Update Animator Blend Tree parameter
         if (animator != null)
         {
-            animator.SetInteger(SpeedStateHash, (int)currentState);
+            if (HasParameter(animator, BlendHash))
+            {
+                float normalized = sprintSpeed <= 0f ? 0f : Mathf.Clamp01(agent.velocity.magnitude / sprintSpeed);
+                animator.SetFloat(BlendHash, normalized);
+            }
         }
     }
 
@@ -117,7 +125,10 @@ public sealed class EnemyController : MonoBehaviour
 
         if (animator != null)
         {
-            animator.SetTrigger(AttackTriggerHash);
+            if (HasParameter(animator, AttackTriggerHash))
+            {
+                animator.SetTrigger(AttackTriggerHash);
+            }
         }
 
         if (targetHealth != null)
@@ -131,5 +142,18 @@ public sealed class EnemyController : MonoBehaviour
     {
         if (GameManager.Instance != null) GameManager.Instance.AddScore(scoreValue);
         Destroy(gameObject);
+    }
+
+    private static bool HasParameter(Animator a, int hash)
+    {
+        foreach (AnimatorControllerParameter p in a.parameters)
+        {
+            if (p.nameHash == hash)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
