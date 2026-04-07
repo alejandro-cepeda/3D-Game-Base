@@ -112,7 +112,7 @@ SphereCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Radius: 0.5
+  m_Radius: 0.75
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &1977346535183261218
 MonoBehaviour:
@@ -131,6 +131,11 @@ MonoBehaviour:
   lifetimeSeconds: 3
   pierceCount: 0
   debugHits: 0
+  useTrail: 0
+  trailTime: 0.08
+  trailStartWidth: 0.05
+  trailEndWidth: 0
+  armDelaySeconds: 0.03
 --- !u!54 &3064812943640478929
 Rigidbody:
   m_ObjectHideFlags: 0

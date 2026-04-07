@@ -1,4 +1,6 @@
 using UnityEngine;
+using System;
+using System.Collections;
 
 public sealed class PlayerCombat : MonoBehaviour
 {
@@ -47,8 +49,23 @@ public sealed class PlayerCombat : MonoBehaviour
     [SerializeField] private float originHeight = 1.4f;
     [SerializeField] private bool aimAtMousePosition = true;
 
+    [Header("Muzzle Flash")]
+    [SerializeField] private bool enableMuzzleFlash = true;
+    [SerializeField] private Color muzzleFlashColor = new Color(1f, 0.85f, 0.4f, 1f);
+    [SerializeField] private float muzzleFlashLightIntensity = 10f;
+    [SerializeField] private float muzzleFlashLightRange = 6f;
+    [SerializeField] private float muzzleFlashDurationSeconds = 0.05f;
+    [SerializeField] private float muzzleFlashParticleSize = 0.08f;
+
     private float nextFireTime;
     private WeaponId currentGun;
+    private float spreadMultiplier = 1f;
+
+    public event Action<WeaponId>? GunChanged;
+
+    private Light? muzzleLight;
+    private ParticleSystem? muzzleParticles;
+    private Coroutine? muzzleFlashRoutine;
 
     private void Update()
     {
@@ -67,6 +84,12 @@ public sealed class PlayerCombat : MonoBehaviour
     {
         currentGun = startingGun;
         ApplyGunStats(currentGun);
+        GunChanged?.Invoke(currentGun);
+
+        if (enableMuzzleFlash)
+        {
+            EnsureMuzzleFlashObjects();
+        }
     }
 
     private void TryAttack()
@@ -108,14 +131,14 @@ public sealed class PlayerCombat : MonoBehaviour
 
             WeaponStats stats = GetCurrentStats();
             int pellets = Mathf.Max(1, stats.pellets);
-            float spread = stats.spreadDegrees;
+            float spread = stats.spreadDegrees * spreadMultiplier;
 
             for (int i = 0; i < pellets; i++)
             {
                 Quaternion pelletRotation = rotation;
                 if (spread > 0f)
                 {
-                    float yaw = Random.Range(-spread, spread);
+                    float yaw = UnityEngine.Random.Range(-spread, spread);
                     pelletRotation = rotation * Quaternion.Euler(0f, yaw, 0f);
                 }
 
@@ -123,6 +146,7 @@ public sealed class PlayerCombat : MonoBehaviour
                 BulletProjectile projectile = Instantiate(bulletPrefab, spawnPos, pelletRotation);
                 projectile.Initialize(gameObject, damage, bulletSpeed, bulletPierceCount);
                 projectile.SetLifetime(bulletLifetimeSeconds);
+                projectile.MultiplyHitRadius(1.5f);
 
                 if (currentGun == WeaponId.Shotgun)
                 {
@@ -138,6 +162,8 @@ public sealed class PlayerCombat : MonoBehaviour
             {
                 Debug.Log($"[PlayerCombat] Fired {pellets} projectile(s) with {currentGun}. Damage: {damage} Speed: {bulletSpeed} Lifetime: {bulletLifetimeSeconds} Pierce: {bulletPierceCount}", this);
             }
+
+            TriggerMuzzleFlash();
 
             return;
         }
@@ -239,7 +265,19 @@ public sealed class PlayerCombat : MonoBehaviour
         bulletLifetimeSeconds = Mathf.Max(0.1f, bulletLifetimeSeconds + additionalSeconds);
     }
 
+    public void AddPierce(int additionalPierce)
+    {
+        bulletPierceCount = Mathf.Max(0, bulletPierceCount + additionalPierce);
+    }
+
+    public void ImproveAccuracy(float multiplier)
+    {
+        spreadMultiplier = Mathf.Clamp(spreadMultiplier * Mathf.Clamp01(multiplier), 0.1f, 1f);
+    }
+
     public WeaponId CurrentGun => currentGun;
+
+    public Transform? Muzzle => muzzle;
 
     public void SetGun(WeaponId weapon)
     {
@@ -247,9 +285,117 @@ public sealed class PlayerCombat : MonoBehaviour
         ApplyGunStats(currentGun);
         nextFireTime = 0f;
 
+        GunChanged?.Invoke(currentGun);
+
         if (debugHits)
         {
             Debug.Log($"[PlayerCombat] Switched gun to {currentGun}. Damage: {damage} FireRateSeconds: {fireRateSeconds} BulletSpeed: {bulletSpeed} Lifetime: {bulletLifetimeSeconds}", this);
+        }
+    }
+
+    private void TriggerMuzzleFlash()
+    {
+        if (!enableMuzzleFlash)
+        {
+            return;
+        }
+
+        if (muzzle == null)
+        {
+            return;
+        }
+
+        EnsureMuzzleFlashObjects();
+
+        if (muzzleLight != null)
+        {
+            muzzleLight.enabled = true;
+            muzzleLight.color = muzzleFlashColor;
+            muzzleLight.intensity = muzzleFlashLightIntensity;
+            muzzleLight.range = muzzleFlashLightRange;
+        }
+
+        if (muzzleParticles != null)
+        {
+            muzzleParticles.Play(true);
+        }
+
+        if (muzzleFlashRoutine != null)
+        {
+            StopCoroutine(muzzleFlashRoutine);
+        }
+
+        muzzleFlashRoutine = StartCoroutine(MuzzleFlashOffRoutine());
+    }
+
+    private IEnumerator MuzzleFlashOffRoutine()
+    {
+        yield return new WaitForSecondsRealtime(muzzleFlashDurationSeconds);
+        if (muzzleLight != null)
+        {
+            muzzleLight.enabled = false;
+        }
+
+        muzzleFlashRoutine = null;
+    }
+
+    private void EnsureMuzzleFlashObjects()
+    {
+        if (muzzle == null)
+        {
+            return;
+        }
+
+        if (muzzleLight == null)
+        {
+            GameObject lightObject = new GameObject("MuzzleFlashLight", typeof(Light));
+            lightObject.transform.SetParent(muzzle, false);
+            lightObject.transform.localPosition = Vector3.zero;
+            lightObject.transform.localRotation = Quaternion.identity;
+
+            Light l = lightObject.GetComponent<Light>();
+            l.type = LightType.Point;
+            l.enabled = false;
+            l.intensity = muzzleFlashLightIntensity;
+            l.range = muzzleFlashLightRange;
+            l.color = muzzleFlashColor;
+            muzzleLight = l;
+        }
+
+        if (muzzleParticles == null)
+        {
+            GameObject particleObject = new GameObject("MuzzleFlashParticles", typeof(ParticleSystem));
+            particleObject.transform.SetParent(muzzle, false);
+            particleObject.transform.localPosition = Vector3.zero;
+            particleObject.transform.localRotation = Quaternion.identity;
+
+            ParticleSystem ps = particleObject.GetComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            ParticleSystem.MainModule main = ps.main;
+            main.loop = false;
+            main.startLifetime = 0.05f;
+            main.startSpeed = 0.0f;
+            main.startSize = muzzleFlashParticleSize;
+            main.startColor = muzzleFlashColor;
+            main.simulationSpace = ParticleSystemSimulationSpace.Local;
+            main.playOnAwake = false;
+
+            ParticleSystem.EmissionModule emission = ps.emission;
+            emission.enabled = true;
+            emission.rateOverTime = 0f;
+            emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 6) });
+
+            ParticleSystem.ShapeModule shape = ps.shape;
+            shape.enabled = true;
+            shape.shapeType = ParticleSystemShapeType.Cone;
+            shape.angle = 20f;
+            shape.radius = 0.02f;
+            shape.length = 0.05f;
+
+            ParticleSystemRenderer r = ps.GetComponent<ParticleSystemRenderer>();
+            r.renderMode = ParticleSystemRenderMode.Billboard;
+
+            muzzleParticles = ps;
         }
     }
 
@@ -259,7 +405,7 @@ public sealed class PlayerCombat : MonoBehaviour
         {
             WeaponId.Pistol => new WeaponStats { pellets = 1, spreadDegrees = 0f },
             WeaponId.Shotgun => new WeaponStats { pellets = 6, spreadDegrees = 14f },
-            _ => new WeaponStats { pellets = 1, spreadDegrees = 2.0f }
+            _ => new WeaponStats { pellets = 1, spreadDegrees = 2.5f }
         };
     }
 
@@ -272,7 +418,7 @@ public sealed class PlayerCombat : MonoBehaviour
                 damage = 25,
                 fireRateSeconds = 0.5f,
                 bulletSpeed = 55f,
-                bulletLifetimeSeconds = 2.5f,
+                bulletLifetimeSeconds = 1.6f,
                 pierceCount = 0,
                 pellets = 1,
                 spreadDegrees = 0f
@@ -282,20 +428,20 @@ public sealed class PlayerCombat : MonoBehaviour
                 damage = 20,
                 fireRateSeconds = 1.0f,
                 bulletSpeed = 45f,
-                bulletLifetimeSeconds = 0.75f,
+                bulletLifetimeSeconds = 0.45f,
                 pierceCount = 0,
                 pellets = 6,
                 spreadDegrees = 14f
             },
             _ => new WeaponStats
             {
-                damage = 20,
+                damage = 25,
                 fireRateSeconds = 0.25f,
                 bulletSpeed = 70f,
-                bulletLifetimeSeconds = 3.0f,
+                bulletLifetimeSeconds = 1.9f,
                 pierceCount = 0,
                 pellets = 1,
-                spreadDegrees = 2.0f
+                spreadDegrees = 2.5f
             }
         };
 

@@ -23,6 +23,7 @@ public sealed class BulletProjectile : MonoBehaviour
     private bool armed;
 
     private TrailRenderer? trail;
+    private Collider? col;
 
     private void Awake()
     {
@@ -31,8 +32,8 @@ public sealed class BulletProjectile : MonoBehaviour
         rb.isKinematic = true;
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
 
-        Collider collider = GetComponent<Collider>();
-        collider.isTrigger = true;
+        col = GetComponent<Collider>();
+        col.isTrigger = true;
 
         remainingArmDelay = armDelaySeconds;
         armed = remainingArmDelay <= 0f;
@@ -62,6 +63,29 @@ public sealed class BulletProjectile : MonoBehaviour
         if (useTrail)
         {
             EnsureTrail(trailColor);
+        }
+    }
+
+    public void MultiplyHitRadius(float multiplier)
+    {
+        float m = Mathf.Max(0.01f, multiplier);
+        col ??= GetComponent<Collider>();
+
+        if (col is SphereCollider sphere)
+        {
+            sphere.radius *= m;
+        }
+        else if (col is CapsuleCollider capsule)
+        {
+            capsule.radius *= m;
+        }
+        else if (col is BoxCollider box)
+        {
+            box.size *= m;
+        }
+        else
+        {
+            transform.localScale = transform.localScale * m;
         }
     }
 
@@ -145,11 +169,6 @@ public sealed class BulletProjectile : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (!armed)
-        {
-            return;
-        }
-
         if (owner != null && other.transform.IsChildOf(owner.transform))
         {
             return;
@@ -161,6 +180,11 @@ public sealed class BulletProjectile : MonoBehaviour
         }
 
         Health? health = other.GetComponentInParent<Health>();
+        if (!armed && health == null)
+        {
+            return;
+        }
+
         if (health != null)
         {
             if (debugHits)

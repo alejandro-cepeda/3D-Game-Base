@@ -9,6 +9,19 @@ using UnityEngine.InputSystem.UI;
 
 public sealed class GameManager : MonoBehaviour
 {
+    private enum UpgradeId
+    {
+        WiderView,
+        WeaponUpgrade,
+        LaserSight,
+        MoveSpeed,
+        Accuracy,
+        HealthRegen,
+        MaxHealth,
+        BulletPierce,
+        Radiation,
+        RadiationRadius
+    }
     [SerializeField] private string sceneToReload = "MainGameplay";
     [SerializeField] private bool debugEvents;
     [SerializeField] private int upgradeScoreThreshold = 10;
@@ -18,14 +31,25 @@ public sealed class GameManager : MonoBehaviour
 
     private int score;
     private TMP_Text? scoreText;
+    private TMP_Text? weaponText;
     private Image? playerHealthFill;
     private GameObject? gameOverPanel;
     private GameObject? upgradePanel;
 
     private int nextUpgradeScore;
     private int widerViewPickCount;
+    private bool laserSightUnlocked;
+    private int accuracyPickCount;
+    private int regenPickCount;
+    private int maxHealthPickCount;
+    private int piercePickCount;
+    private int radiationPickCount;
+    private int radiationRadiusPickCount;
+
+    private UpgradeId[] currentUpgradeChoices = new UpgradeId[3];
 
     private Health? playerHealth;
+    private PlayerCombat? playerCombat;
 
     public static GameManager? Instance { get; private set; }
 
@@ -68,6 +92,7 @@ public sealed class GameManager : MonoBehaviour
     {
         EnsureUi();
         WirePlayerDeath();
+        WirePlayerCombat();
         SetScoreText();
         UpdatePlayerHealthUi();
         HideGameOver();
@@ -121,6 +146,7 @@ public sealed class GameManager : MonoBehaviour
     {
         nextUpgradeScore += upgradeScoreThreshold;
 
+        RollUpgradeChoices();
         UpdateUpgradeLabels();
 
         if (upgradePanel != null)
@@ -154,7 +180,9 @@ public sealed class GameManager : MonoBehaviour
             cameraFollow = FindFirstObjectByType<CameraFollow>();
         }
 
-        if (index == 0)
+        UpgradeId choice = currentUpgradeChoices[Mathf.Clamp(index, 0, currentUpgradeChoices.Length - 1)];
+
+        if (choice == UpgradeId.WiderView)
         {
             float multiplier = Mathf.Pow(widerViewDiminishingMultiplier, widerViewPickCount);
             widerViewPickCount++;
@@ -173,38 +201,20 @@ public sealed class GameManager : MonoBehaviour
 
             if (cameraFollow != null)
             {
-                Vector3 before = cameraFollow.Offset;
                 cameraFollow.ZoomOutTopDown(zoomDistance);
 
                 if (playerMovement != null)
                 {
                     cameraFollow.SetTarget(playerMovement.transform);
                 }
-
-                Debug.Log($"[GameManager] Wider View: Offset {before} -> {cameraFollow.Offset}", this);
-            }
-            else if (debugEvents)
-            {
-                Debug.Log("[GameManager] Wider View: No CameraFollow found.", this);
             }
 
             if (mainCamera != null && mainCamera.orthographic)
             {
-                float beforeSize = mainCamera.orthographicSize;
                 mainCamera.orthographicSize = Mathf.Max(0.01f, mainCamera.orthographicSize + orthoIncrease);
-                Debug.Log($"[GameManager] Wider View: Ortho size {beforeSize} -> {mainCamera.orthographicSize}", this);
-            }
-
-            if (mainCamera != null)
-            {
-                Debug.Log($"[GameManager] Wider View: Camera {mainCamera.name} FOV {mainCamera.fieldOfView} position {mainCamera.transform.position}", this);
-            }
-            else
-            {
-                Debug.Log("[GameManager] Wider View: Camera.main is null.", this);
             }
         }
-        else if (index == 1)
+        else if (choice == UpgradeId.WeaponUpgrade)
         {
             if (playerCombat != null)
             {
@@ -216,17 +226,92 @@ public sealed class GameManager : MonoBehaviour
                 {
                     playerCombat.SetGun(PlayerCombat.WeaponId.AssaultRifle);
                 }
-                else
-                {
-                    playerCombat.AddBulletLifetime(0.5f);
-                }
             }
         }
-        else if (index == 2)
+        else if (choice == UpgradeId.LaserSight)
+        {
+            if (playerMovement != null)
+            {
+                PlayerLaserSight? sight = playerMovement.GetComponent<PlayerLaserSight>();
+                if (sight == null)
+                {
+                    sight = playerMovement.gameObject.AddComponent<PlayerLaserSight>();
+                }
+
+                sight.SetEnabled(true);
+                laserSightUnlocked = true;
+            }
+        }
+        else if (choice == UpgradeId.MoveSpeed)
         {
             if (playerMovement != null)
             {
                 playerMovement.AddMoveSpeed(1.5f);
+            }
+        }
+        else if (choice == UpgradeId.Accuracy)
+        {
+            if (playerCombat != null)
+            {
+                accuracyPickCount++;
+                playerCombat.ImproveAccuracy(0.85f);
+            }
+        }
+        else if (choice == UpgradeId.HealthRegen)
+        {
+            if (playerMovement != null)
+            {
+                PlayerHealthRegen? regen = playerMovement.GetComponent<PlayerHealthRegen>();
+                if (regen == null)
+                {
+                    regen = playerMovement.gameObject.AddComponent<PlayerHealthRegen>();
+                }
+
+                regen.AddRegen(1.0f);
+                regenPickCount++;
+            }
+        }
+        else if (choice == UpgradeId.MaxHealth)
+        {
+            if (playerHealth != null)
+            {
+                playerHealth.AddMaxHealth(25, true);
+                maxHealthPickCount++;
+            }
+        }
+        else if (choice == UpgradeId.BulletPierce)
+        {
+            if (playerCombat != null)
+            {
+                playerCombat.AddPierce(1);
+                piercePickCount++;
+            }
+        }
+        else if (choice == UpgradeId.Radiation)
+        {
+            if (playerMovement != null)
+            {
+                PlayerRadiationAura? aura = playerMovement.GetComponent<PlayerRadiationAura>();
+                if (aura == null)
+                {
+                    aura = playerMovement.gameObject.AddComponent<PlayerRadiationAura>();
+                }
+
+                radiationPickCount++;
+            }
+        }
+        else if (choice == UpgradeId.RadiationRadius)
+        {
+            if (playerMovement != null)
+            {
+                PlayerRadiationAura? aura = playerMovement.GetComponent<PlayerRadiationAura>();
+                if (aura == null)
+                {
+                    aura = playerMovement.gameObject.AddComponent<PlayerRadiationAura>();
+                }
+
+                aura.AddRadius(1.5f);
+                radiationRadiusPickCount++;
             }
         }
 
@@ -241,29 +326,97 @@ public sealed class GameManager : MonoBehaviour
             return;
         }
 
-        PlayerMovement? playerMovement = FindFirstObjectByType<PlayerMovement>();
-        PlayerCombat? combat = playerMovement != null ? playerMovement.GetComponent<PlayerCombat>() : null;
-
-        string weaponLabel = "Weapon Upgrade";
-        if (combat != null)
+        for (int i = 0; i < 3; i++)
         {
-            weaponLabel = combat.CurrentGun switch
+            Transform? buttonText = upgradePanel.transform.Find($"Upgrade{i}/Text");
+            if (buttonText == null)
+            {
+                continue;
+            }
+
+            TMP_Text? text = buttonText.GetComponent<TMP_Text>();
+            if (text == null)
+            {
+                continue;
+            }
+
+            text.text = GetUpgradeLabel(currentUpgradeChoices[i]);
+        }
+    }
+
+    private void RollUpgradeChoices()
+    {
+        var pool = GetUpgradePool();
+        for (int i = 0; i < 3; i++)
+        {
+            if (pool.Count == 0)
+            {
+                currentUpgradeChoices[i] = UpgradeId.MoveSpeed;
+                continue;
+            }
+
+            int idx = UnityEngine.Random.Range(0, pool.Count);
+            currentUpgradeChoices[i] = pool[idx];
+            pool.RemoveAt(idx);
+        }
+    }
+
+    private System.Collections.Generic.List<UpgradeId> GetUpgradePool()
+    {
+        var pool = new System.Collections.Generic.List<UpgradeId>
+        {
+            UpgradeId.WiderView,
+            UpgradeId.MoveSpeed,
+            UpgradeId.Accuracy,
+            UpgradeId.HealthRegen,
+            UpgradeId.MaxHealth,
+            UpgradeId.BulletPierce
+        };
+
+        if (!laserSightUnlocked)
+        {
+            pool.Add(UpgradeId.LaserSight);
+        }
+
+        if (playerCombat != null && playerCombat.CurrentGun != PlayerCombat.WeaponId.AssaultRifle)
+        {
+            pool.Add(UpgradeId.WeaponUpgrade);
+        }
+
+        bool hasRadiation = FindFirstObjectByType<PlayerRadiationAura>() != null || radiationPickCount > 0;
+        if (!hasRadiation)
+        {
+            pool.Add(UpgradeId.Radiation);
+        }
+        else
+        {
+            pool.Add(UpgradeId.RadiationRadius);
+        }
+
+        return pool;
+    }
+
+    private string GetUpgradeLabel(UpgradeId id)
+    {
+        return id switch
+        {
+            UpgradeId.WiderView => "Wider View",
+            UpgradeId.WeaponUpgrade => playerCombat == null ? "Weapon Upgrade" : playerCombat.CurrentGun switch
             {
                 PlayerCombat.WeaponId.Pistol => "Upgrade: Shotgun",
                 PlayerCombat.WeaponId.Shotgun => "Upgrade: Assault Rifle",
-                _ => "Upgrade: Bullet Lifetime"
-            };
-        }
-
-        Transform? weaponButton = upgradePanel.transform.Find("Upgrade1/Text");
-        if (weaponButton != null)
-        {
-            TMP_Text? text = weaponButton.GetComponent<TMP_Text>();
-            if (text != null)
-            {
-                text.text = weaponLabel;
-            }
-        }
+                _ => "Weapon Upgrade"
+            },
+            UpgradeId.LaserSight => "Laser Sight",
+            UpgradeId.MoveSpeed => "Move Faster",
+            UpgradeId.Accuracy => "Accuracy +",
+            UpgradeId.HealthRegen => "Health Regen",
+            UpgradeId.MaxHealth => "Max Health +",
+            UpgradeId.BulletPierce => "Bullet Pierce +",
+            UpgradeId.Radiation => "Radiation Aura",
+            UpgradeId.RadiationRadius => "Radiation Radius +",
+            _ => "Upgrade"
+        };
     }
 
     public void Restart()
@@ -272,6 +425,13 @@ public sealed class GameManager : MonoBehaviour
         score = 0;
         nextUpgradeScore = upgradeScoreThreshold;
         widerViewPickCount = 0;
+        laserSightUnlocked = false;
+        accuracyPickCount = 0;
+        regenPickCount = 0;
+        maxHealthPickCount = 0;
+        piercePickCount = 0;
+        radiationPickCount = 0;
+        radiationRadiusPickCount = 0;
         SceneManager.LoadScene(sceneToReload);
     }
 
@@ -303,6 +463,35 @@ public sealed class GameManager : MonoBehaviour
         UpdatePlayerHealthUi();
     }
 
+    private void WirePlayerCombat()
+    {
+        PlayerMovement? player = FindFirstObjectByType<PlayerMovement>();
+        if (player == null)
+        {
+            return;
+        }
+
+        PlayerCombat? combat = player.GetComponent<PlayerCombat>();
+        if (combat == null)
+        {
+            return;
+        }
+
+        if (playerCombat != null)
+        {
+            playerCombat.GunChanged -= OnGunChanged;
+        }
+
+        playerCombat = combat;
+        playerCombat.GunChanged += OnGunChanged;
+        UpdateWeaponText();
+    }
+
+    private void OnGunChanged(PlayerCombat.WeaponId weapon)
+    {
+        UpdateWeaponText();
+    }
+
     private void OnPlayerHealthChanged(Health health)
     {
         UpdatePlayerHealthUi();
@@ -328,7 +517,7 @@ public sealed class GameManager : MonoBehaviour
 
     private void EnsureUi()
     {
-        if (scoreText != null && playerHealthFill != null && gameOverPanel != null && upgradePanel != null)
+        if (scoreText != null && weaponText != null && playerHealthFill != null && gameOverPanel != null && upgradePanel != null)
         {
             return;
         }
@@ -356,6 +545,27 @@ public sealed class GameManager : MonoBehaviour
             text.raycastTarget = false;
 
             scoreText = text;
+        }
+
+        if (weaponText == null)
+        {
+            GameObject weaponObject = new GameObject("WeaponText", typeof(RectTransform), typeof(TextMeshProUGUI));
+            weaponObject.transform.SetParent(canvas.transform, false);
+
+            RectTransform rect = weaponObject.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = new Vector2(0f, 1f);
+            rect.pivot = new Vector2(0f, 1f);
+            rect.anchoredPosition = new Vector2(20f, -48f);
+            rect.sizeDelta = new Vector2(500f, 40f);
+
+            TextMeshProUGUI text = weaponObject.GetComponent<TextMeshProUGUI>();
+            text.fontSize = 22;
+            text.color = new Color(1f, 1f, 1f, 0.9f);
+            text.alignment = TextAlignmentOptions.TopLeft;
+            text.raycastTarget = false;
+
+            weaponText = text;
         }
 
         if (playerHealthFill == null)
@@ -602,6 +812,22 @@ public sealed class GameManager : MonoBehaviour
         {
             Debug.Log($"[GameManager] Player HP UI: {playerHealth.CurrentHealth}/{playerHealth.MaxHealth} ({playerHealthFill.fillAmount:0.00})", this);
         }
+    }
+
+    private void UpdateWeaponText()
+    {
+        if (weaponText == null)
+        {
+            return;
+        }
+
+        if (playerCombat == null)
+        {
+            weaponText.text = "Weapon: -";
+            return;
+        }
+
+        weaponText.text = $"Weapon: {playerCombat.CurrentGun}";
     }
 
     private void EnsureEventSystem()

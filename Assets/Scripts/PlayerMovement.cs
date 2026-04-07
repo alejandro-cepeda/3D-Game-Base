@@ -16,6 +16,8 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private Animator animator;
     private Rigidbody rb;
 
+    private Vector3 desiredVelocity;
+
     private static readonly int SpeedHash = Animator.StringToHash("Speed");
     private static readonly int IsGroundedHash = Animator.StringToHash("IsGrounded");
     private static readonly int VerticalVelocityHash = Animator.StringToHash("VerticalVelocity");
@@ -36,6 +38,8 @@ public class PlayerMovement : MonoBehaviour
         if (rb != null)
         {
             rb.constraints |= RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+            rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            rb.interpolation = RigidbodyInterpolation.Interpolate;
         }
     }
 
@@ -62,7 +66,7 @@ public class PlayerMovement : MonoBehaviour
 
         if (rb != null)
         {
-            rb.linearVelocity = new Vector3(
+            desiredVelocity = new Vector3(
                 movementDirection.x * currentSpeed,
                 rb.linearVelocity.y,
                 movementDirection.z * currentSpeed
@@ -70,7 +74,7 @@ public class PlayerMovement : MonoBehaviour
 
             if (jumpPressed && isGrounded)
             {
-                rb.linearVelocity = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
+                desiredVelocity = new Vector3(desiredVelocity.x, 0f, desiredVelocity.z);
                 rb.AddForce(Vector3.up * jumpForce, ForceMode.VelocityChange);
             }
         }
@@ -110,6 +114,22 @@ public class PlayerMovement : MonoBehaviour
                 RotateTowardsMouse();
             }
         }
+    }
+
+    private void FixedUpdate()
+    {
+        if (rb == null)
+        {
+            return;
+        }
+
+        if (Time.timeScale == 0f)
+        {
+            rb.linearVelocity = Vector3.zero;
+            return;
+        }
+
+        rb.linearVelocity = desiredVelocity;
     }
 
     private void RotateTowardsMouse()
