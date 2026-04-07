@@ -10,6 +10,8 @@ public sealed class EnemyHealthBar : MonoBehaviour
     private Image? fillImage;
     private Transform? canvasTransform;
 
+    private static Sprite? uiSprite;
+
     private void Awake()
     {
         health = GetComponent<Health>();
@@ -24,7 +26,7 @@ public sealed class EnemyHealthBar : MonoBehaviour
             health.Died += OnDied;
         }
 
-        UpdateFill();
+        UpdateFillAndVisibility();
     }
 
     private void OnDisable()
@@ -55,7 +57,7 @@ public sealed class EnemyHealthBar : MonoBehaviour
 
     private void OnHealthChanged(Health changed)
     {
-        UpdateFill();
+        UpdateFillAndVisibility();
     }
 
     private void OnDied(Health died)
@@ -66,7 +68,7 @@ public sealed class EnemyHealthBar : MonoBehaviour
         }
     }
 
-    private void UpdateFill()
+    private void UpdateFillAndVisibility()
     {
         if (health == null || fillImage == null)
         {
@@ -74,6 +76,15 @@ public sealed class EnemyHealthBar : MonoBehaviour
         }
 
         fillImage.fillAmount = health.Normalized;
+
+        if (canvasTransform != null)
+        {
+            bool visible = !health.IsDead && health.CurrentHealth < health.MaxHealth;
+            if (canvasTransform.gameObject.activeSelf != visible)
+            {
+                canvasTransform.gameObject.SetActive(visible);
+            }
+        }
     }
 
     private void CreateUi()
@@ -99,6 +110,7 @@ public sealed class EnemyHealthBar : MonoBehaviour
         backgroundRect.offsetMax = Vector2.zero;
 
         Image background = backgroundObject.GetComponent<Image>();
+        background.sprite = GetUiSprite();
         background.color = new Color(0f, 0f, 0f, 0.7f);
 
         GameObject fillObject = new GameObject("Fill", typeof(RectTransform), typeof(Image));
@@ -111,6 +123,7 @@ public sealed class EnemyHealthBar : MonoBehaviour
         fillRect.offsetMax = new Vector2(-2f, -2f);
 
         Image fill = fillObject.GetComponent<Image>();
+        fill.sprite = GetUiSprite();
         fill.type = Image.Type.Filled;
         fill.fillMethod = Image.FillMethod.Horizontal;
         fill.fillOrigin = (int)Image.OriginHorizontal.Left;
@@ -118,5 +131,21 @@ public sealed class EnemyHealthBar : MonoBehaviour
 
         fillImage = fill;
         canvasTransform = canvasObject.transform;
+
+        canvasObject.SetActive(false);
+    }
+
+    private static Sprite GetUiSprite()
+    {
+        if (uiSprite != null)
+        {
+            return uiSprite;
+        }
+
+        Texture2D texture = new Texture2D(1, 1);
+        texture.SetPixel(0, 0, Color.white);
+        texture.Apply();
+        uiSprite = Sprite.Create(texture, new Rect(0f, 0f, 1f, 1f), new Vector2(0.5f, 0.5f));
+        return uiSprite;
     }
 }

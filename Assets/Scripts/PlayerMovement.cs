@@ -1,10 +1,14 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 public class PlayerMovement : MonoBehaviour
 {
     [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private float sprintMultiplier = 1.6f;
     [SerializeField] private float turnSpeedDegreesPerSecond = 720f;
+    [SerializeField] private bool faceMouse = true;
+    [SerializeField] private bool faceMouseOnlyWhileAttacking = true;
+    [SerializeField] private float faceMouseTurnSpeedDegreesPerSecond = 1080f;
     [SerializeField] private float jumpForce = 5.5f;
     [SerializeField] private Transform groundCheck;
     [SerializeField] private float groundCheckRadius = 0.2f;
@@ -37,6 +41,11 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
+        if (Time.timeScale == 0f)
+        {
+            return;
+        }
+
         // Get input from WASD keys
         float horizontalInput = Input.GetAxis("Horizontal"); // A/D keys
         float verticalInput = Input.GetAxis("Vertical");     // W/S keys
@@ -92,6 +101,51 @@ public class PlayerMovement : MonoBehaviour
                 turnSpeedDegreesPerSecond * Time.deltaTime
             );
         }
+
+        if (faceMouse)
+        {
+            bool shouldFaceMouse = !faceMouseOnlyWhileAttacking || Input.GetMouseButton(0);
+            if (shouldFaceMouse)
+            {
+                RotateTowardsMouse();
+            }
+        }
+    }
+
+    private void RotateTowardsMouse()
+    {
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+        {
+            return;
+        }
+
+        Camera? cam = Camera.main;
+        if (cam == null)
+        {
+            return;
+        }
+
+        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+        Plane plane = new Plane(Vector3.up, new Vector3(0f, transform.position.y, 0f));
+        if (!plane.Raycast(ray, out float enter))
+        {
+            return;
+        }
+
+        Vector3 point = ray.GetPoint(enter);
+        Vector3 dir = point - transform.position;
+        dir.y = 0f;
+        if (dir.sqrMagnitude < 0.0001f)
+        {
+            return;
+        }
+
+        Quaternion targetRotation = Quaternion.LookRotation(dir.normalized, Vector3.up);
+        transform.rotation = Quaternion.RotateTowards(
+            transform.rotation,
+            targetRotation,
+            faceMouseTurnSpeedDegreesPerSecond * Time.deltaTime
+        );
     }
 
     private bool IsGrounded()
@@ -102,5 +156,10 @@ public class PlayerMovement : MonoBehaviour
         }
 
         return Physics.CheckSphere(groundCheck.position, groundCheckRadius, groundLayers, QueryTriggerInteraction.Ignore);
+    }
+
+    public void AddMoveSpeed(float amount)
+    {
+        moveSpeed = Mathf.Max(0f, moveSpeed + amount);
     }
 }
