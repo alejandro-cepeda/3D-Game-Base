@@ -70,4 +70,25 @@ public sealed class Health : MonoBehaviour
 
         Changed?.Invoke(this);
     }
+
+    public void AddMaxHealth(int amount, bool healForAmount)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        maxHealth = Mathf.Max(1, maxHealth + amount);
+
+        if (healForAmount)
+        {
+            CurrentHealth = Mathf.Min(maxHealth, CurrentHealth + amount);
+        }
+        else
+        {
+            CurrentHealth = Mathf.Min(CurrentHealth, maxHealth);
+        }
+
+        Changed?.Invoke(this);
+    }
 }

@@ -723,6 +723,12 @@ MonoBehaviour:
   debugHits: 1
   originHeight: 1.4
   aimAtMousePosition: 1
+  enableMuzzleFlash: 1
+  muzzleFlashColor: {r: 1, g: 0.85, b: 0.4, a: 1}
+  muzzleFlashLightIntensity: 10
+  muzzleFlashLightRange: 6
+  muzzleFlashDurationSeconds: 0.05
+  muzzleFlashParticleSize: 0.08
 --- !u!114 &993881742
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -772,7 +778,7 @@ Transform:
   m_GameObject: {fileID: 1135376034}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.014199972, y: 1.112, z: 0.246}
+  m_LocalPosition: {x: -0.014199972, y: 1.112, z: 0.18}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
