@@ -63,20 +63,20 @@ public sealed class EnemyController : MonoBehaviour
 
     private void OnEnable()
     {
-if (selfHealth != null)
+        if (selfHealth != null)
         {
             selfHealth.Died += OnDied;
-            selfHealth.Damaged += OnDamaged; // New Subscription
-        }    }
+            selfHealth.Damaged += OnDamaged;
+        }
+    }
 
     private void OnDisable()
     {
-    if (selfHealth != null)
+        if (selfHealth != null)
         {
             selfHealth.Died -= OnDied;
-            selfHealth.Damaged -= OnDamaged; // New Unsubscription
-        }   
-         
+            selfHealth.Damaged -= OnDamaged;
+        }
     }
     
     private void Start()
@@ -152,7 +152,7 @@ if (selfHealth != null)
             targetHealth.TakeDamage(touchDamage);
         }
     }
-private void OnDamaged(int damageTaken)
+    private void OnDamaged(Health health, int damageTaken)
     {
         if (animator != null)
         {

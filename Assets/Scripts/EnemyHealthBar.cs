@@ -1,10 +1,10 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-public class EnemyHealthBar : MonoBehaviour
+public sealed class EnemyHealthBar : MonoBehaviour
 {
-    [SerializeField] private Slider? healthSlider;
-    [SerializeField] private bool hideOnDeath = true;
+    [SerializeField] private Vector3 worldOffset = new Vector3(0f, 2.0f, 0f);
+    [SerializeField] private Vector2 size = new Vector2(1.6f, 0.2f);
 
     private Health? health;
     private Image? fillImage;
@@ -14,23 +14,16 @@ public class EnemyHealthBar : MonoBehaviour
 
     private void Awake()
     {
-        // Find the Health component on the parent zombie object
-        health = GetComponentInParent<Health>();
-        mainCamera = Camera.main;
-
-        if (healthSlider == null)
-        {
-            healthSlider = GetComponentInChildren<Slider>();
-        }
+        health = GetComponent<Health>();
+        CreateUi();
     }
 
     private void OnEnable()
     {
         if (health != null)
         {
-            // Subscribe to the new events from the refactored Health script
-            health.Damaged += OnHealthChanged;
-            health.Died += OnDeath;
+            health.Changed += OnHealthChanged;
+            health.Died += OnDied;
         }
 
         UpdateFillAndVisibility();
@@ -40,16 +33,20 @@ public class EnemyHealthBar : MonoBehaviour
     {
         if (health != null)
         {
-            // Unsubscribe to prevent memory leaks (standard C# practice)
-            health.Damaged -= OnHealthChanged;
-            health.Died -= OnDeath;
+            health.Changed -= OnHealthChanged;
+            health.Died -= OnDied;
         }
     }
 
     private void LateUpdate()
     {
-        // Simple Billboard effect: Ensure the UI always faces the camera
-        if (mainCamera != null)
+        if (canvasTransform == null)
+        {
+            return;
+        }
+
+        Camera? camera = Camera.main;
+        if (camera == null)
         {
             return;
         }
@@ -90,7 +87,7 @@ public class EnemyHealthBar : MonoBehaviour
         }
     }
 
-    private void UpdateVisuals()
+    private void CreateUi()
     {
         GameObject canvasObject = new GameObject("EnemyHealthBar", typeof(Canvas));
         canvasObject.transform.SetParent(transform, false);

@@ -1,47 +1,69 @@
 using System;
 using UnityEngine;
 
-public class Health : MonoBehaviour
+public sealed class Health : MonoBehaviour
 {
     [SerializeField] private int maxHealth = 100;
-    [SerializeField] private bool destroyOnDeath = false; // Set to false for enemies with death animations
-    [SerializeField] private float destroyDelay = 3f;
+    [SerializeField] private bool debugEvents;
 
-    private int currentHealth;
-    public bool IsDead { get; private set; }
+    public int MaxHealth => maxHealth;
+    public int CurrentHealth { get; private set; }
+    public bool IsDead => CurrentHealth <= 0;
+    public float Normalized => maxHealth <= 0 ? 0f : Mathf.Clamp01((float)CurrentHealth / maxHealth);
 
-    // Events to notify the EnemyController
-    public event Action<int>? Damaged; 
     public event Action<Health>? Died;
+    public event Action<Health, int>? Damaged;
+    public event Action<Health>? Changed;
 
     private void Awake()
     {
-        currentHealth = maxHealth;
+        CurrentHealth = Mathf.Clamp(CurrentHealth, 0, maxHealth);
+        if (CurrentHealth == 0)
+        {
+            CurrentHealth = maxHealth;
+        }
+
+        Changed?.Invoke(this);
     }
 
-    public void TakeDamage(int damage)
+    public void TakeDamage(int amount)
     {
-        if (IsDead) return;
-
-        currentHealth -= damage;
-
-        if (currentHealth <= 0)
+        if (amount <= 0 || IsDead)
         {
-            currentHealth = 0;
-            IsDead = true;
-            
-            // Notify listeners that this object has died
-            Died?.Invoke(this);
-
-            if (destroyOnDeath)
-            {
-                Destroy(gameObject, destroyDelay);
-            }
+            return;
         }
-        else
+
+        CurrentHealth = Mathf.Max(0, CurrentHealth - amount);
+
+        if (debugEvents)
         {
-            // Notify listeners that damage was taken (for the 'Hit' animation)
-            Damaged?.Invoke(damage);
+            Debug.Log($"[{name}] Took damage: {amount}. HP: {CurrentHealth}/{maxHealth}", this);
+        }
+
+        Damaged?.Invoke(this, amount);
+        Changed?.Invoke(this);
+
+        if (CurrentHealth == 0)
+        {
+            if (debugEvents)
+            {
+                Debug.Log($"[{name}] Died.", this);
+            }
+
+            Died?.Invoke(this);
+        }
+    }
+
+    public void Heal(int amount)
+    {
+        if (amount <= 0 || IsDead)
+        {
+            return;
+        }
+
+        if (CurrentHealth >= maxHealth)
+        {
+            return;
         }
 
         CurrentHealth = Mathf.Min(maxHealth, CurrentHealth + amount);
