@@ -20,6 +20,12 @@ public sealed class PlayerHealthRegen : MonoBehaviour
             return;
         }
 
+        if (health.CurrentHealth >= health.MaxHealth)
+        {
+            accumulator = 0f;
+            return;
+        }
+
         accumulator += healthPerSecond * Time.deltaTime;
         int healAmount = Mathf.FloorToInt(accumulator);
         if (healAmount <= 0)
