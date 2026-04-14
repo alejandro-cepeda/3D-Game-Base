@@ -26,7 +26,9 @@ public sealed class EnemyController : MonoBehaviour
     // Animation hashes for performance (better than strings)
     private static readonly int SpeedStateHash = Animator.StringToHash("SpeedState");
     private static readonly int AttackTriggerHash = Animator.StringToHash("Attack");
-
+    [Header("Animation Triggers")]
+    private static readonly int HitTriggerHash = Animator.StringToHash("Hit");
+    private static readonly int DeathTriggerHash = Animator.StringToHash("Death");
     private NavMeshAgent agent = null!;
     private Transform? target;
     private Health? targetHealth;
@@ -48,14 +50,22 @@ public sealed class EnemyController : MonoBehaviour
 
     private void OnEnable()
     {
-        if (selfHealth != null) selfHealth.Died += OnDied;
-    }
+if (selfHealth != null)
+        {
+            selfHealth.Died += OnDied;
+            selfHealth.Damaged += OnDamaged; // New Subscription
+        }    }
 
     private void OnDisable()
     {
-        if (selfHealth != null) selfHealth.Died -= OnDied;
+    if (selfHealth != null)
+        {
+            selfHealth.Died -= OnDied;
+            selfHealth.Damaged -= OnDamaged; // New Unsubscription
+        }   
+         
     }
-
+    
     private void Start()
     {
         PlayerMovement? player = FindFirstObjectByType<PlayerMovement>();
@@ -126,10 +136,32 @@ public sealed class EnemyController : MonoBehaviour
             targetHealth.TakeDamage(touchDamage);
         }
     }
-
+private void OnDamaged(int damageTaken)
+    {
+        if (animator != null)
+        {
+            animator.SetTrigger(HitTriggerHash);
+        }
+    }
     private void OnDied(Health health)
     {
-        if (GameManager.Instance != null) GameManager.Instance.AddScore(scoreValue);
-        Destroy(gameObject);
+        // 1. Play Death Animation
+        if (animator != null)
+        {
+            animator.SetTrigger(DeathTriggerHash);
+        }
+
+        // 2. Disable AI and Physics so the body stays on the ground
+        agent.enabled = false;
+        if (TryGetComponent<Collider>(out var col)) col.enabled = false;
+
+        // 3. Update Score
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.AddScore(scoreValue);
+        }
+
+        // 4. Clean up the object after a delay (e.g., 3 seconds)
+        Destroy(gameObject, 3f);
     }
 }
