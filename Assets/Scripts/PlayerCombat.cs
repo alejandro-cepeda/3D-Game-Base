@@ -17,6 +17,14 @@ public sealed class PlayerCombat : MonoBehaviour
         AssaultRifle
     }
 
+    public enum BulletType
+    {
+        Normal,
+        Freeze,
+        Poison,
+        Explosive
+    }
+
     [System.Serializable]
     private struct WeaponStats
     {
@@ -60,6 +68,8 @@ public sealed class PlayerCombat : MonoBehaviour
     private float nextFireTime;
     private WeaponId currentGun;
     private float spreadMultiplier = 1f;
+    private int pierceBonus;
+    private BulletType currentBulletType = BulletType.Normal;
 
     public event Action<WeaponId>? GunChanged;
 
@@ -144,7 +154,13 @@ public sealed class PlayerCombat : MonoBehaviour
 
                 Vector3 spawnPos = muzzle.position + (pelletRotation * Vector3.forward * 0.35f);
                 BulletProjectile projectile = Instantiate(bulletPrefab, spawnPos, pelletRotation);
-                projectile.Initialize(gameObject, damage, bulletSpeed, bulletPierceCount);
+                projectile.Initialize(
+                    projectileOwner: gameObject,
+                    projectileDamage: damage,
+                    projectileSpeed: bulletSpeed,
+                    projectilePierceCount: currentBulletType == BulletType.Explosive ? 0 : bulletPierceCount,
+                    bulletType: currentBulletType
+                );
                 projectile.SetLifetime(bulletLifetimeSeconds);
                 projectile.MultiplyHitRadius(1.5f);
 
@@ -267,17 +283,30 @@ public sealed class PlayerCombat : MonoBehaviour
 
     public void AddPierce(int additionalPierce)
     {
-        bulletPierceCount = Mathf.Max(0, bulletPierceCount + additionalPierce);
+        pierceBonus = Mathf.Max(0, pierceBonus + additionalPierce);
+        ApplyGunStats(currentGun);
     }
 
     public void ImproveAccuracy(float multiplier)
     {
-        spreadMultiplier = Mathf.Clamp(spreadMultiplier * Mathf.Clamp01(multiplier), 0.1f, 1f);
+        spreadMultiplier = Mathf.Clamp(spreadMultiplier * Mathf.Clamp01(multiplier), 0f, 1f);
+    }
+
+    public void SetPerfectAccuracy()
+    {
+        spreadMultiplier = 0f;
     }
 
     public WeaponId CurrentGun => currentGun;
 
     public Transform? Muzzle => muzzle;
+
+    public BulletType CurrentBulletType => currentBulletType;
+
+    public void SetBulletType(BulletType type)
+    {
+        currentBulletType = type;
+    }
 
     public void SetGun(WeaponId weapon)
     {
@@ -449,6 +478,6 @@ public sealed class PlayerCombat : MonoBehaviour
         fireRateSeconds = stats.fireRateSeconds;
         bulletSpeed = stats.bulletSpeed;
         bulletLifetimeSeconds = stats.bulletLifetimeSeconds;
-        bulletPierceCount = stats.pierceCount;
+        bulletPierceCount = stats.pierceCount + pierceBonus;
     }
 }

@@ -54,6 +54,11 @@ public sealed class EnemyController : MonoBehaviour
         {
             gameObject.AddComponent<EnemyKnockback>();
         }
+
+        if (GetComponent<EnemyStatusEffects>() == null)
+        {
+            gameObject.AddComponent<EnemyStatusEffects>();
+        }
     }
 
     private void OnEnable()
