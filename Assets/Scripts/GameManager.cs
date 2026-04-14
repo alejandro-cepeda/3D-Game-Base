@@ -12,7 +12,9 @@ public sealed class GameManager : MonoBehaviour
     private enum UpgradeId
     {
         WiderView,
-        WeaponUpgrade,
+        WeaponPistol,
+        WeaponShotgun,
+        WeaponAssaultRifle,
         LaserSight,
         MoveSpeed,
         Accuracy,
@@ -20,7 +22,10 @@ public sealed class GameManager : MonoBehaviour
         MaxHealth,
         BulletPierce,
         Radiation,
-        RadiationRadius
+        RadiationRadius,
+        BulletFreeze,
+        BulletPoison,
+        BulletExplosive
     }
     [SerializeField] private string sceneToReload = "MainGameplay";
     [SerializeField] private bool debugEvents;
@@ -29,14 +34,25 @@ public sealed class GameManager : MonoBehaviour
     [SerializeField] private float widerViewOrthoSizeIncrease = 2.5f;
     [SerializeField] private float widerViewDiminishingMultiplier = 0.75f;
 
+    [Header("Upgrade Caps")]
+    [SerializeField] private int accuracyCap = 5;
+    [SerializeField] private int regenCap = 5;
+    [SerializeField] private int maxHealthCap = 6;
+    [SerializeField] private int pierceCap = 5;
+    [SerializeField] private int radiationCap = 5;
+    [SerializeField] private int moveSpeedCap = 10;
+
     private int score;
     private TMP_Text? scoreText;
     private TMP_Text? weaponText;
+    private TMP_Text? upgradesText;
+    private TMP_Text? playerHealthText;
     private Image? playerHealthFill;
     private GameObject? gameOverPanel;
     private GameObject? upgradePanel;
 
     private int nextUpgradeScore;
+    private int pendingUpgrades;
     private int widerViewPickCount;
     private bool laserSightUnlocked;
     private int accuracyPickCount;
@@ -45,6 +61,7 @@ public sealed class GameManager : MonoBehaviour
     private int piercePickCount;
     private int radiationPickCount;
     private int radiationRadiusPickCount;
+    private int moveSpeedPickCount;
 
     private UpgradeId[] currentUpgradeChoices = new UpgradeId[3];
 
@@ -73,6 +90,14 @@ public sealed class GameManager : MonoBehaviour
         InitializeForCurrentScene();
     }
 
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.Tab))
+        {
+            TryOpenUpgradeChoice();
+        }
+    }
+
     private void OnEnable()
     {
         SceneManager.sceneLoaded += OnSceneLoaded;
@@ -94,6 +119,7 @@ public sealed class GameManager : MonoBehaviour
         WirePlayerDeath();
         WirePlayerCombat();
         SetScoreText();
+        SetUpgradesText();
         UpdatePlayerHealthUi();
         HideGameOver();
         HideUpgradeChoice();
@@ -109,10 +135,13 @@ public sealed class GameManager : MonoBehaviour
         score = Mathf.Max(0, score + amount);
         SetScoreText();
 
-        if (nextUpgradeScore > 0 && score >= nextUpgradeScore)
+        while (nextUpgradeScore > 0 && score >= nextUpgradeScore)
         {
-            ShowUpgradeChoice();
+            pendingUpgrades++;
+            nextUpgradeScore += upgradeScoreThreshold;
         }
+
+        SetUpgradesText();
     }
 
     public void ResetScore()
@@ -144,7 +173,10 @@ public sealed class GameManager : MonoBehaviour
 
     private void ShowUpgradeChoice()
     {
-        nextUpgradeScore += upgradeScoreThreshold;
+        if (pendingUpgrades <= 0)
+        {
+            return;
+        }
 
         RollUpgradeChoices();
         UpdateUpgradeLabels();
@@ -157,6 +189,21 @@ public sealed class GameManager : MonoBehaviour
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
         Time.timeScale = 0f;
+    }
+
+    private void TryOpenUpgradeChoice()
+    {
+        if (pendingUpgrades <= 0)
+        {
+            return;
+        }
+
+        if (gameOverPanel != null && gameOverPanel.activeSelf)
+        {
+            return;
+        }
+
+        ShowUpgradeChoice();
     }
 
     private void HideUpgradeChoice()
@@ -214,18 +261,25 @@ public sealed class GameManager : MonoBehaviour
                 mainCamera.orthographicSize = Mathf.Max(0.01f, mainCamera.orthographicSize + orthoIncrease);
             }
         }
-        else if (choice == UpgradeId.WeaponUpgrade)
+        else if (choice == UpgradeId.WeaponPistol)
         {
             if (playerCombat != null)
             {
-                if (playerCombat.CurrentGun == PlayerCombat.WeaponId.Pistol)
-                {
-                    playerCombat.SetGun(PlayerCombat.WeaponId.Shotgun);
-                }
-                else if (playerCombat.CurrentGun == PlayerCombat.WeaponId.Shotgun)
-                {
-                    playerCombat.SetGun(PlayerCombat.WeaponId.AssaultRifle);
-                }
+                playerCombat.SetGun(PlayerCombat.WeaponId.Pistol);
+            }
+        }
+        else if (choice == UpgradeId.WeaponShotgun)
+        {
+            if (playerCombat != null)
+            {
+                playerCombat.SetGun(PlayerCombat.WeaponId.Shotgun);
+            }
+        }
+        else if (choice == UpgradeId.WeaponAssaultRifle)
+        {
+            if (playerCombat != null)
+            {
+                playerCombat.SetGun(PlayerCombat.WeaponId.AssaultRifle);
             }
         }
         else if (choice == UpgradeId.LaserSight)
@@ -246,15 +300,50 @@ public sealed class GameManager : MonoBehaviour
         {
             if (playerMovement != null)
             {
-                playerMovement.AddMoveSpeed(1.5f);
+                if (moveSpeedPickCount < moveSpeedCap)
+                {
+                    playerMovement.AddMoveSpeed(1.5f);
+                    moveSpeedPickCount++;
+                }
+            }
+        }
+        else if (choice == UpgradeId.BulletFreeze)
+        {
+            if (playerCombat != null)
+            {
+                playerCombat.SetBulletType(PlayerCombat.BulletType.Freeze);
+            }
+        }
+        else if (choice == UpgradeId.BulletPoison)
+        {
+            if (playerCombat != null)
+            {
+                playerCombat.SetBulletType(PlayerCombat.BulletType.Poison);
+            }
+        }
+        else if (choice == UpgradeId.BulletExplosive)
+        {
+            if (playerCombat != null)
+            {
+                playerCombat.SetBulletType(PlayerCombat.BulletType.Explosive);
             }
         }
         else if (choice == UpgradeId.Accuracy)
         {
             if (playerCombat != null)
             {
-                accuracyPickCount++;
-                playerCombat.ImproveAccuracy(0.85f);
+                if (accuracyPickCount < accuracyCap)
+                {
+                    accuracyPickCount++;
+                    if (accuracyPickCount >= accuracyCap)
+                    {
+                        playerCombat.SetPerfectAccuracy();
+                    }
+                    else
+                    {
+                        playerCombat.ImproveAccuracy(0.85f);
+                    }
+                }
             }
         }
         else if (choice == UpgradeId.HealthRegen)
@@ -267,24 +356,33 @@ public sealed class GameManager : MonoBehaviour
                     regen = playerMovement.gameObject.AddComponent<PlayerHealthRegen>();
                 }
 
-                regen.AddRegen(1.0f);
-                regenPickCount++;
+                if (regenPickCount < regenCap)
+                {
+                    regen.AddRegen(1.0f);
+                    regenPickCount++;
+                }
             }
         }
         else if (choice == UpgradeId.MaxHealth)
         {
             if (playerHealth != null)
             {
-                playerHealth.AddMaxHealth(25, true);
-                maxHealthPickCount++;
+                if (maxHealthPickCount < maxHealthCap)
+                {
+                    playerHealth.AddMaxHealth(25, true);
+                    maxHealthPickCount++;
+                }
             }
         }
         else if (choice == UpgradeId.BulletPierce)
         {
             if (playerCombat != null)
             {
-                playerCombat.AddPierce(1);
-                piercePickCount++;
+                if (piercePickCount < pierceCap)
+                {
+                    playerCombat.AddPierce(1);
+                    piercePickCount++;
+                }
             }
         }
         else if (choice == UpgradeId.Radiation)
@@ -297,7 +395,10 @@ public sealed class GameManager : MonoBehaviour
                     aura = playerMovement.gameObject.AddComponent<PlayerRadiationAura>();
                 }
 
-                radiationPickCount++;
+                if (radiationPickCount < radiationCap)
+                {
+                    radiationPickCount++;
+                }
             }
         }
         else if (choice == UpgradeId.RadiationRadius)
@@ -310,13 +411,28 @@ public sealed class GameManager : MonoBehaviour
                     aura = playerMovement.gameObject.AddComponent<PlayerRadiationAura>();
                 }
 
-                aura.AddRadius(1.5f);
-                radiationRadiusPickCount++;
+                if (radiationPickCount < radiationCap)
+                {
+                    aura.AddRadius(1.5f);
+                    radiationRadiusPickCount++;
+                    radiationPickCount++;
+                }
             }
         }
 
         HideUpgradeChoice();
-        Time.timeScale = 1f;
+
+        pendingUpgrades = Mathf.Max(0, pendingUpgrades - 1);
+        SetUpgradesText();
+
+        if (pendingUpgrades > 0)
+        {
+            ShowUpgradeChoice();
+        }
+        else
+        {
+            Time.timeScale = 1f;
+        }
     }
 
     private void UpdateUpgradeLabels()
@@ -370,27 +486,90 @@ public sealed class GameManager : MonoBehaviour
             UpgradeId.Accuracy,
             UpgradeId.HealthRegen,
             UpgradeId.MaxHealth,
-            UpgradeId.BulletPierce
+            UpgradeId.BulletPierce,
+            UpgradeId.WeaponPistol,
+            UpgradeId.WeaponShotgun,
+            UpgradeId.WeaponAssaultRifle
         };
+
+        if (moveSpeedPickCount >= moveSpeedCap)
+        {
+            pool.Remove(UpgradeId.MoveSpeed);
+        }
+
+        if (accuracyPickCount >= accuracyCap)
+        {
+            pool.Remove(UpgradeId.Accuracy);
+        }
+
+        if (regenPickCount >= regenCap)
+        {
+            pool.Remove(UpgradeId.HealthRegen);
+        }
+
+        if (maxHealthPickCount >= maxHealthCap)
+        {
+            pool.Remove(UpgradeId.MaxHealth);
+        }
+
+        if (piercePickCount >= pierceCap)
+        {
+            pool.Remove(UpgradeId.BulletPierce);
+        }
 
         if (!laserSightUnlocked)
         {
             pool.Add(UpgradeId.LaserSight);
         }
 
-        if (playerCombat != null && playerCombat.CurrentGun != PlayerCombat.WeaponId.AssaultRifle)
+        if (playerCombat != null)
         {
-            pool.Add(UpgradeId.WeaponUpgrade);
-        }
+            if (playerCombat.CurrentGun == PlayerCombat.WeaponId.Pistol)
+            {
+                pool.Remove(UpgradeId.WeaponPistol);
+            }
+            else if (playerCombat.CurrentGun == PlayerCombat.WeaponId.Shotgun)
+            {
+                pool.Remove(UpgradeId.WeaponShotgun);
+            }
+            else
+            {
+                pool.Remove(UpgradeId.WeaponAssaultRifle);
+            }
 
-        bool hasRadiation = FindFirstObjectByType<PlayerRadiationAura>() != null || radiationPickCount > 0;
-        if (!hasRadiation)
-        {
-            pool.Add(UpgradeId.Radiation);
+            if (playerCombat.CurrentBulletType == PlayerCombat.BulletType.Freeze)
+            {
+                pool.Add(UpgradeId.BulletPoison);
+                pool.Add(UpgradeId.BulletExplosive);
+            }
+            else if (playerCombat.CurrentBulletType == PlayerCombat.BulletType.Poison)
+            {
+                pool.Add(UpgradeId.BulletFreeze);
+                pool.Add(UpgradeId.BulletExplosive);
+            }
+            else if (playerCombat.CurrentBulletType == PlayerCombat.BulletType.Explosive)
+            {
+                pool.Add(UpgradeId.BulletFreeze);
+                pool.Add(UpgradeId.BulletPoison);
+            }
+            else
+            {
+                pool.Add(UpgradeId.BulletFreeze);
+                pool.Add(UpgradeId.BulletPoison);
+                pool.Add(UpgradeId.BulletExplosive);
+            }
         }
         else
         {
-            pool.Add(UpgradeId.RadiationRadius);
+            pool.Add(UpgradeId.BulletFreeze);
+            pool.Add(UpgradeId.BulletPoison);
+            pool.Add(UpgradeId.BulletExplosive);
+        }
+
+        bool hasRadiation = FindFirstObjectByType<PlayerRadiationAura>() != null || radiationPickCount > 0;
+        if (radiationPickCount < radiationCap)
+        {
+            pool.Add(hasRadiation ? UpgradeId.RadiationRadius : UpgradeId.Radiation);
         }
 
         return pool;
@@ -401,12 +580,9 @@ public sealed class GameManager : MonoBehaviour
         return id switch
         {
             UpgradeId.WiderView => "Wider View",
-            UpgradeId.WeaponUpgrade => playerCombat == null ? "Weapon Upgrade" : playerCombat.CurrentGun switch
-            {
-                PlayerCombat.WeaponId.Pistol => "Upgrade: Shotgun",
-                PlayerCombat.WeaponId.Shotgun => "Upgrade: Assault Rifle",
-                _ => "Weapon Upgrade"
-            },
+            UpgradeId.WeaponPistol => "Pistol",
+            UpgradeId.WeaponShotgun => "Shotgun",
+            UpgradeId.WeaponAssaultRifle => "Assault Rifle",
             UpgradeId.LaserSight => "Laser Sight",
             UpgradeId.MoveSpeed => "Move Faster",
             UpgradeId.Accuracy => "Accuracy +",
@@ -415,6 +591,9 @@ public sealed class GameManager : MonoBehaviour
             UpgradeId.BulletPierce => "Bullet Pierce +",
             UpgradeId.Radiation => "Radiation Aura",
             UpgradeId.RadiationRadius => "Radiation Radius +",
+            UpgradeId.BulletFreeze => "Freeze Bullets",
+            UpgradeId.BulletPoison => "Poison Bullets",
+            UpgradeId.BulletExplosive => "Explosive Bullets",
             _ => "Upgrade"
         };
     }
@@ -424,6 +603,7 @@ public sealed class GameManager : MonoBehaviour
         Time.timeScale = 1f;
         score = 0;
         nextUpgradeScore = upgradeScoreThreshold;
+        pendingUpgrades = 0;
         widerViewPickCount = 0;
         laserSightUnlocked = false;
         accuracyPickCount = 0;
@@ -432,6 +612,7 @@ public sealed class GameManager : MonoBehaviour
         piercePickCount = 0;
         radiationPickCount = 0;
         radiationRadiusPickCount = 0;
+        moveSpeedPickCount = 0;
         SceneManager.LoadScene(sceneToReload);
     }
 
@@ -515,9 +696,26 @@ public sealed class GameManager : MonoBehaviour
         }
     }
 
+    private void SetUpgradesText()
+    {
+        if (upgradesText == null)
+        {
+            return;
+        }
+
+        if (pendingUpgrades <= 0)
+        {
+            upgradesText.text = "Upgrades: 0";
+        }
+        else
+        {
+            upgradesText.text = $"Upgrades: {pendingUpgrades} (press Tab)";
+        }
+    }
+
     private void EnsureUi()
     {
-        if (scoreText != null && weaponText != null && playerHealthFill != null && gameOverPanel != null && upgradePanel != null)
+        if (scoreText != null && weaponText != null && upgradesText != null && playerHealthFill != null && playerHealthText != null && gameOverPanel != null && upgradePanel != null)
         {
             return;
         }
@@ -568,17 +766,37 @@ public sealed class GameManager : MonoBehaviour
             weaponText = text;
         }
 
+        if (upgradesText == null)
+        {
+            GameObject upgradesObject = new GameObject("UpgradesText", typeof(RectTransform), typeof(TextMeshProUGUI));
+            upgradesObject.transform.SetParent(canvas.transform, false);
+
+            RectTransform rect = upgradesObject.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = new Vector2(0f, 1f);
+            rect.pivot = new Vector2(0f, 1f);
+            rect.anchoredPosition = new Vector2(20f, -72f);
+            rect.sizeDelta = new Vector2(700f, 40f);
+
+            TextMeshProUGUI text = upgradesObject.GetComponent<TextMeshProUGUI>();
+            text.fontSize = 20;
+            text.color = new Color(1f, 1f, 1f, 0.8f);
+            text.alignment = TextAlignmentOptions.TopLeft;
+            text.raycastTarget = false;
+            upgradesText = text;
+        }
+
         if (playerHealthFill == null)
         {
             GameObject hpRoot = new GameObject("PlayerHealth", typeof(RectTransform));
             hpRoot.transform.SetParent(canvas.transform, false);
 
             RectTransform rootRect = hpRoot.GetComponent<RectTransform>();
-            rootRect.anchorMin = new Vector2(0f, 1f);
-            rootRect.anchorMax = new Vector2(0f, 1f);
-            rootRect.pivot = new Vector2(0f, 1f);
-            rootRect.anchoredPosition = new Vector2(20f, -70f);
-            rootRect.sizeDelta = new Vector2(320f, 18f);
+            rootRect.anchorMin = new Vector2(0.5f, 1f);
+            rootRect.anchorMax = new Vector2(0.5f, 1f);
+            rootRect.pivot = new Vector2(0.5f, 1f);
+            rootRect.anchoredPosition = new Vector2(0f, -16f);
+            rootRect.sizeDelta = new Vector2(420f, 22f);
 
             GameObject borderObject = new GameObject("Border", typeof(RectTransform), typeof(Image));
             borderObject.transform.SetParent(hpRoot.transform, false);
@@ -623,6 +841,23 @@ public sealed class GameManager : MonoBehaviour
             fill.color = new Color(0.85f, 0.15f, 0.15f, 1f);
 
             playerHealthFill = fill;
+
+            GameObject hpTextObject = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+            hpTextObject.transform.SetParent(hpRoot.transform, false);
+
+            RectTransform hpTextRect = hpTextObject.GetComponent<RectTransform>();
+            hpTextRect.anchorMin = new Vector2(0.5f, 0.5f);
+            hpTextRect.anchorMax = new Vector2(0.5f, 0.5f);
+            hpTextRect.pivot = new Vector2(0.5f, 0.5f);
+            hpTextRect.anchoredPosition = Vector2.zero;
+            hpTextRect.sizeDelta = new Vector2(420f, 26f);
+
+            TextMeshProUGUI hpText = hpTextObject.GetComponent<TextMeshProUGUI>();
+            hpText.fontSize = 18;
+            hpText.color = Color.white;
+            hpText.alignment = TextAlignmentOptions.Center;
+            hpText.raycastTarget = false;
+            playerHealthText = hpText;
         }
 
         if (gameOverPanel == null)
@@ -803,10 +1038,21 @@ public sealed class GameManager : MonoBehaviour
         if (playerHealth == null)
         {
             playerHealthFill.fillAmount = 0f;
+
+            if (playerHealthText != null)
+            {
+                playerHealthText.text = "- / -";
+            }
+
             return;
         }
 
         playerHealthFill.fillAmount = playerHealth.Normalized;
+
+        if (playerHealthText != null)
+        {
+            playerHealthText.text = $"{playerHealth.CurrentHealth} / {playerHealth.MaxHealth}";
+        }
 
         if (debugEvents)
         {

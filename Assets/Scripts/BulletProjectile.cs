@@ -4,6 +4,13 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody))]
 public sealed class BulletProjectile : MonoBehaviour
 {
+    public enum BulletType
+    {
+        Normal,
+        Freeze,
+        Poison,
+        Explosive
+    }
     [SerializeField] private int damage = 25;
     [SerializeField] private float speed = 35f;
     [SerializeField] private float lifetimeSeconds = 3f;
@@ -24,6 +31,8 @@ public sealed class BulletProjectile : MonoBehaviour
 
     private TrailRenderer? trail;
     private Collider? col;
+
+    private BulletType bulletType;
 
     private void Awake()
     {
@@ -128,13 +137,15 @@ public sealed class BulletProjectile : MonoBehaviour
         trail.colorGradient = gradient;
     }
 
-    public void Initialize(GameObject projectileOwner, int projectileDamage, float projectileSpeed, int projectilePierceCount)
+    public void Initialize(GameObject projectileOwner, int projectileDamage, float projectileSpeed, int projectilePierceCount, PlayerCombat.BulletType bulletType)
     {
         owner = projectileOwner;
         damage = projectileDamage;
         speed = projectileSpeed;
         pierceCount = projectilePierceCount;
         remainingPierces = pierceCount;
+
+        this.bulletType = (BulletType)bulletType;
     }
 
     public void SetLifetime(float seconds)
@@ -185,6 +196,13 @@ public sealed class BulletProjectile : MonoBehaviour
             return;
         }
 
+        if (bulletType == BulletType.Explosive)
+        {
+            ExplodeAt(other.transform.position);
+            Destroy(gameObject);
+            return;
+        }
+
         if (health != null)
         {
             if (debugHits)
@@ -193,6 +211,19 @@ public sealed class BulletProjectile : MonoBehaviour
             }
 
             health.TakeDamage(damage);
+
+            EnemyStatusEffects? effects = other.GetComponentInParent<EnemyStatusEffects>();
+            if (effects != null)
+            {
+                if (bulletType == BulletType.Freeze)
+                {
+                    effects.ApplyFreeze(1f);
+                }
+                else if (bulletType == BulletType.Poison)
+                {
+                    effects.ApplyPoison(5f, 5f);
+                }
+            }
         }
         else
         {
@@ -214,5 +245,38 @@ public sealed class BulletProjectile : MonoBehaviour
         }
 
         Destroy(gameObject);
+    }
+
+    private void ExplodeAt(Vector3 position)
+    {
+        float radius = 3.5f;
+        int explosionDamage = damage + 30;
+        Collider[] colliders = Physics.OverlapSphere(position, radius, ~0, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            Collider c = colliders[i];
+            if (c == null)
+            {
+                continue;
+            }
+
+            if (owner != null && c.transform.IsChildOf(owner.transform))
+            {
+                continue;
+            }
+
+            Health? h = c.GetComponentInParent<Health>();
+            if (h == null)
+            {
+                continue;
+            }
+
+            if (h.GetComponent<PlayerMovement>() != null)
+            {
+                continue;
+            }
+
+            h.TakeDamage(explosionDamage);
+        }
     }
 }
