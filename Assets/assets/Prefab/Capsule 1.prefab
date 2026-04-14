@@ -270,6 +270,7 @@ GameObject:
   - component: {fileID: 5787697709775135639}
   - component: {fileID: 4343116374003924120}
   - component: {fileID: 3898638828962775135}
+  - component: {fileID: -1139327031915096563}
   m_Layer: 0
   m_Name: Capsule 1
   m_TagString: Untagged
@@ -373,7 +374,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyController
   touchDamage: 10
-  attackRange: 2
+  attackRange: 1.2
   attackCooldownSeconds: 1
   scoreValue: 1
   debugAttacks: 0
@@ -396,8 +397,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Health
   maxHealth: 50
-  destroyOnDeath: 0
-  destroyDelay: 3
+  debugEvents: 0
 --- !u!1 &4820281442149891218
 GameObject:
   m_ObjectHideFlags: 0

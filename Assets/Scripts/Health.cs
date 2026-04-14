@@ -43,11 +43,35 @@ public class Health : MonoBehaviour
             // Notify listeners that damage was taken (for the 'Hit' animation)
             Damaged?.Invoke(damage);
         }
+
+        CurrentHealth = Mathf.Min(maxHealth, CurrentHealth + amount);
+
+        if (debugEvents)
+        {
+            Debug.Log($"[{name}] Healed: {amount}. HP: {CurrentHealth}/{maxHealth}", this);
+        }
+
+        Changed?.Invoke(this);
     }
 
-    // Optional: Public method to get current health percentage for UI
-    public float GetHealthNormalized()
+    public void AddMaxHealth(int amount, bool healForAmount)
     {
-        return (float)currentHealth / maxHealth;
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        maxHealth = Mathf.Max(1, maxHealth + amount);
+
+        if (healForAmount)
+        {
+            CurrentHealth = Mathf.Min(maxHealth, CurrentHealth + amount);
+        }
+        else
+        {
+            CurrentHealth = Mathf.Min(CurrentHealth, maxHealth);
+        }
+
+        Changed?.Invoke(this);
     }
 }

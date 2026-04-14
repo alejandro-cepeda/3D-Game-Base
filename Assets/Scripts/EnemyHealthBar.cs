@@ -7,7 +7,10 @@ public class EnemyHealthBar : MonoBehaviour
     [SerializeField] private bool hideOnDeath = true;
 
     private Health? health;
-    private Camera? mainCamera;
+    private Image? fillImage;
+    private Transform? canvasTransform;
+
+    private static Sprite? uiSprite;
 
     private void Awake()
     {
@@ -30,8 +33,7 @@ public class EnemyHealthBar : MonoBehaviour
             health.Died += OnDeath;
         }
 
-        // Initialize the slider value immediately
-        UpdateVisuals();
+        UpdateFillAndVisibility();
     }
 
     private void OnDisable()
@@ -49,30 +51,104 @@ public class EnemyHealthBar : MonoBehaviour
         // Simple Billboard effect: Ensure the UI always faces the camera
         if (mainCamera != null)
         {
-            transform.LookAt(transform.position + mainCamera.transform.rotation * Vector3.forward,
-                             mainCamera.transform.rotation * Vector3.up);
+            return;
+        }
+
+        canvasTransform.position = transform.position + worldOffset;
+        canvasTransform.rotation = Quaternion.LookRotation(canvasTransform.position - camera.transform.position);
+    }
+
+    private void OnHealthChanged(Health changed)
+    {
+        UpdateFillAndVisibility();
+    }
+
+    private void OnDied(Health died)
+    {
+        if (canvasTransform != null)
+        {
+            Destroy(canvasTransform.gameObject);
         }
     }
 
-    private void OnHealthChanged(int damageAmount)
+    private void UpdateFillAndVisibility()
     {
-        UpdateVisuals();
+        if (health == null || fillImage == null)
+        {
+            return;
+        }
+
+        fillImage.fillAmount = health.Normalized;
+
+        if (canvasTransform != null)
+        {
+            bool visible = !health.IsDead && health.CurrentHealth < health.MaxHealth;
+            if (canvasTransform.gameObject.activeSelf != visible)
+            {
+                canvasTransform.gameObject.SetActive(visible);
+            }
+        }
     }
 
     private void UpdateVisuals()
     {
-        if (healthSlider != null && health != null)
-        {
-            // Use the new public method to get the 0.0 to 1.0 value
-            healthSlider.value = health.GetHealthNormalized();
-        }
+        GameObject canvasObject = new GameObject("EnemyHealthBar", typeof(Canvas));
+        canvasObject.transform.SetParent(transform, false);
+
+        Canvas canvas = canvasObject.GetComponent<Canvas>();
+        canvas.renderMode = RenderMode.WorldSpace;
+        canvas.sortingOrder = 100;
+
+        RectTransform canvasRect = canvasObject.GetComponent<RectTransform>();
+        canvasRect.sizeDelta = size * 100f;
+        canvasRect.localScale = Vector3.one * 0.01f;
+
+        GameObject backgroundObject = new GameObject("Background", typeof(RectTransform), typeof(Image));
+        backgroundObject.transform.SetParent(canvasObject.transform, false);
+
+        RectTransform backgroundRect = backgroundObject.GetComponent<RectTransform>();
+        backgroundRect.anchorMin = new Vector2(0f, 0f);
+        backgroundRect.anchorMax = new Vector2(1f, 1f);
+        backgroundRect.offsetMin = Vector2.zero;
+        backgroundRect.offsetMax = Vector2.zero;
+
+        Image background = backgroundObject.GetComponent<Image>();
+        background.sprite = GetUiSprite();
+        background.color = new Color(0f, 0f, 0f, 0.7f);
+
+        GameObject fillObject = new GameObject("Fill", typeof(RectTransform), typeof(Image));
+        fillObject.transform.SetParent(backgroundObject.transform, false);
+
+        RectTransform fillRect = fillObject.GetComponent<RectTransform>();
+        fillRect.anchorMin = new Vector2(0f, 0f);
+        fillRect.anchorMax = new Vector2(1f, 1f);
+        fillRect.offsetMin = new Vector2(2f, 2f);
+        fillRect.offsetMax = new Vector2(-2f, -2f);
+
+        Image fill = fillObject.GetComponent<Image>();
+        fill.sprite = GetUiSprite();
+        fill.type = Image.Type.Filled;
+        fill.fillMethod = Image.FillMethod.Horizontal;
+        fill.fillOrigin = (int)Image.OriginHorizontal.Left;
+        fill.color = new Color(0.1f, 0.85f, 0.1f, 1f);
+
+        fillImage = fill;
+        canvasTransform = canvasObject.transform;
+
+        canvasObject.SetActive(false);
     }
 
-    private void OnDeath(Health h)
+    private static Sprite GetUiSprite()
     {
-        if (hideOnDeath)
+        if (uiSprite != null)
         {
-            gameObject.SetActive(false);
+            return uiSprite;
         }
+
+        Texture2D texture = new Texture2D(1, 1);
+        texture.SetPixel(0, 0, Color.white);
+        texture.Apply();
+        uiSprite = Sprite.Create(texture, new Rect(0f, 0f, 1f, 1f), new Vector2(0.5f, 0.5f));
+        return uiSprite;
     }
 }

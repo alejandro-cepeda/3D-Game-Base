@@ -9,10 +9,21 @@ public sealed class BulletProjectile : MonoBehaviour
     [SerializeField] private float lifetimeSeconds = 3f;
     [SerializeField] private int pierceCount;
     [SerializeField] private bool debugHits;
+    [SerializeField] private bool useTrail;
+    [SerializeField] private float trailTime = 0.08f;
+    [SerializeField] private float trailStartWidth = 0.05f;
+    [SerializeField] private float trailEndWidth = 0.0f;
+    [SerializeField] private float armDelaySeconds = 0.03f;
 
     private int remainingPierces;
     private GameObject? owner;
     private Rigidbody rb = null!;
+    private float remainingLifetime;
+    private float remainingArmDelay;
+    private bool armed;
+
+    private TrailRenderer? trail;
+    private Collider? col;
 
     private void Awake()
     {
@@ -21,16 +32,100 @@ public sealed class BulletProjectile : MonoBehaviour
         rb.isKinematic = true;
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
 
-        Collider collider = GetComponent<Collider>();
-        collider.isTrigger = true;
+        col = GetComponent<Collider>();
+        col.isTrigger = true;
+
+        remainingArmDelay = armDelaySeconds;
+        armed = remainingArmDelay <= 0f;
 
         remainingPierces = pierceCount;
-        Destroy(gameObject, lifetimeSeconds);
+        remainingLifetime = lifetimeSeconds;
+
+        if (useTrail)
+        {
+            EnsureTrail(Color.white);
+        }
 
         if (debugHits)
         {
             Debug.Log("[Bullet] Spawned.", this);
         }
+    }
+
+    public void ConfigureVisuals(float scaleMultiplier, bool enableTrail, Color trailColor)
+    {
+        if (scaleMultiplier != 1f)
+        {
+            transform.localScale = transform.localScale * scaleMultiplier;
+        }
+
+        useTrail = enableTrail;
+        if (useTrail)
+        {
+            EnsureTrail(trailColor);
+        }
+    }
+
+    public void MultiplyHitRadius(float multiplier)
+    {
+        float m = Mathf.Max(0.01f, multiplier);
+        col ??= GetComponent<Collider>();
+
+        if (col is SphereCollider sphere)
+        {
+            sphere.radius *= m;
+        }
+        else if (col is CapsuleCollider capsule)
+        {
+            capsule.radius *= m;
+        }
+        else if (col is BoxCollider box)
+        {
+            box.size *= m;
+        }
+        else
+        {
+            transform.localScale = transform.localScale * m;
+        }
+    }
+
+    private void EnsureTrail(Color color)
+    {
+        if (trail == null)
+        {
+            trail = gameObject.GetComponent<TrailRenderer>();
+        }
+
+        if (trail == null)
+        {
+            trail = gameObject.AddComponent<TrailRenderer>();
+        }
+
+        trail.time = trailTime;
+        trail.startWidth = trailStartWidth;
+        trail.endWidth = trailEndWidth;
+        trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        trail.receiveShadows = false;
+
+        Shader? shader = Shader.Find("Universal Render Pipeline/Unlit");
+        if (shader == null)
+        {
+            shader = Shader.Find("Unlit/Color");
+        }
+
+        if (shader != null)
+        {
+            Material mat = new Material(shader);
+            mat.color = color;
+            trail.material = mat;
+        }
+
+        Gradient gradient = new Gradient();
+        gradient.SetKeys(
+            new[] { new GradientColorKey(color, 0f), new GradientColorKey(color, 1f) },
+            new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0f, 1f) }
+        );
+        trail.colorGradient = gradient;
     }
 
     public void Initialize(GameObject projectileOwner, int projectileDamage, float projectileSpeed, int projectilePierceCount)
@@ -42,9 +137,34 @@ public sealed class BulletProjectile : MonoBehaviour
         remainingPierces = pierceCount;
     }
 
+    public void SetLifetime(float seconds)
+    {
+        remainingLifetime = Mathf.Max(0.05f, seconds);
+    }
+
     private void FixedUpdate()
     {
         rb.MovePosition(rb.position + transform.forward * (speed * Time.fixedDeltaTime));
+
+        if (!armed)
+        {
+            remainingArmDelay -= Time.fixedDeltaTime;
+            if (remainingArmDelay <= 0f)
+            {
+                armed = true;
+            }
+        }
+
+        remainingLifetime -= Time.fixedDeltaTime;
+        if (remainingLifetime <= 0f)
+        {
+            if (debugHits)
+            {
+                Debug.Log("[Bullet] Expired.", this);
+            }
+
+            Destroy(gameObject);
+        }
     }
 
     private void OnTriggerEnter(Collider other)
@@ -60,6 +180,11 @@ public sealed class BulletProjectile : MonoBehaviour
         }
 
         Health? health = other.GetComponentInParent<Health>();
+        if (!armed && health == null)
+        {
+            return;
+        }
+
         if (health != null)
         {
             if (debugHits)
