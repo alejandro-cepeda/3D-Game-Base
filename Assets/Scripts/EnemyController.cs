@@ -185,7 +185,6 @@ public sealed class EnemyController : MonoBehaviour
                 animator.ResetTrigger(AttackTriggerHash);
             if (HasParameter(animator, BlendHash))
                 animator.SetFloat(BlendHash, 0f);
-
             animator.SetTrigger(DeathTriggerHash);
         }
 
