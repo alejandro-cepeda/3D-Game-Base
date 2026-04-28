@@ -8,6 +8,7 @@ public sealed class EnemyController : MonoBehaviour
     [SerializeField] private int touchDamage = 10;
     [SerializeField] private float attackRange = 1.4f;
     [SerializeField] private float attackCooldownSeconds = 1.0f;
+    [SerializeField] private float attackDamageDelaySeconds = 0.4f;
     [SerializeField] private int scoreValue = 1;
     [SerializeField] private bool debugAttacks;
 
@@ -32,6 +33,7 @@ public sealed class EnemyController : MonoBehaviour
     private Health? targetHealth;
     private Health? selfHealth;
     private float nextAttackTime;
+    private Coroutine? attackRoutine;
 
     private void Awake()
     {
@@ -159,11 +161,46 @@ public sealed class EnemyController : MonoBehaviour
             }
         }
 
-        if (targetHealth != null)
+        if (attackRoutine != null)
         {
-            if (debugAttacks) Debug.Log($"[{name}] Attacking player.", this);
-            targetHealth.TakeDamage(touchDamage);
+            StopCoroutine(attackRoutine);
         }
+
+        attackRoutine = StartCoroutine(ApplyDamageAfterDelay());
+    }
+
+    private System.Collections.IEnumerator ApplyDamageAfterDelay()
+    {
+        float delay = Mathf.Max(0f, attackDamageDelaySeconds);
+        if (delay > 0f)
+        {
+            yield return new WaitForSeconds(delay);
+        }
+
+        attackRoutine = null;
+
+        if (selfHealth == null || selfHealth.IsDead)
+        {
+            yield break;
+        }
+
+        if (target == null || targetHealth == null || targetHealth.IsDead)
+        {
+            yield break;
+        }
+
+        float distance = Vector3.Distance(transform.position, target.position);
+        if (distance > attackRange)
+        {
+            yield break;
+        }
+
+        if (debugAttacks)
+        {
+            Debug.Log($"[{name}] Hit player for {touchDamage}.", this);
+        }
+
+        targetHealth.TakeDamage(touchDamage);
     }
     private void OnDamaged(Health health, int damageTaken)
     {
@@ -196,6 +233,7 @@ public sealed class EnemyController : MonoBehaviour
         if (GameManager.Instance != null)
         {
             GameManager.Instance.AddScore(scoreValue);
+            GameManager.Instance.SpawnCoinPickup(transform.position, 1);
         }
 
         // 4. Clean up the object after a delay (e.g., 3 seconds)
