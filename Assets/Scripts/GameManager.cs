@@ -57,6 +57,7 @@ public sealed class GameManager : MonoBehaviour
     private Image? playerHealthFill;
     private GameObject? gameOverPanel;
     private GameObject? upgradePanel;
+    private GameObject? hudRoot;
 
     private int nextUpgradeScore;
     private int pendingUpgrades;
@@ -140,6 +141,11 @@ public sealed class GameManager : MonoBehaviour
         UpdatePlayerHealthUi();
         HideGameOver();
         HideUpgradeChoice();
+
+        if (hudRoot != null)
+        {
+            hudRoot.SetActive(SceneManager.GetActiveScene().name == sceneToReload);
+        }
 
         if (nextUpgradeScore <= 0)
         {
@@ -864,10 +870,22 @@ public sealed class GameManager : MonoBehaviour
 
         EnsureEventSystem();
 
+        if (hudRoot == null)
+        {
+            hudRoot = new GameObject("HUDRoot", typeof(RectTransform));
+            hudRoot.transform.SetParent(canvas.transform, false);
+            
+            RectTransform hudRect = hudRoot.GetComponent<RectTransform>();
+            hudRect.anchorMin = Vector2.zero;
+            hudRect.anchorMax = Vector2.one;
+            hudRect.offsetMin = Vector2.zero;
+            hudRect.offsetMax = Vector2.zero;
+        }
+
         if (scoreText == null)
         {
             GameObject scoreObject = new GameObject("ScoreText", typeof(RectTransform), typeof(TextMeshProUGUI));
-            scoreObject.transform.SetParent(canvas.transform, false);
+            scoreObject.transform.SetParent(hudRoot.transform, false);
 
             RectTransform rect = scoreObject.GetComponent<RectTransform>();
             rect.anchorMin = new Vector2(0f, 1f);
@@ -888,7 +906,7 @@ public sealed class GameManager : MonoBehaviour
         if (weaponText == null)
         {
             GameObject weaponObject = new GameObject("WeaponText", typeof(RectTransform), typeof(TextMeshProUGUI));
-            weaponObject.transform.SetParent(canvas.transform, false);
+            weaponObject.transform.SetParent(hudRoot.transform, false);
 
             RectTransform rect = weaponObject.GetComponent<RectTransform>();
             rect.anchorMin = new Vector2(0f, 1f);
@@ -973,7 +991,7 @@ public sealed class GameManager : MonoBehaviour
         if (playerHealthFill == null)
         {
             GameObject hpRoot = new GameObject("PlayerHealth", typeof(RectTransform));
-            hpRoot.transform.SetParent(canvas.transform, false);
+            hpRoot.transform.SetParent(hudRoot.transform, false);
 
             RectTransform rootRect = hpRoot.GetComponent<RectTransform>();
             rootRect.anchorMin = new Vector2(0.5f, 1f);
