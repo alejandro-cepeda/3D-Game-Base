@@ -22,8 +22,7 @@ public sealed class PlayerCombat : MonoBehaviour
         Normal,
         Freeze,
         Poison,
-        Explosive,
-        Gas
+        Explosive
     }
 
     [System.Serializable]
@@ -45,16 +44,7 @@ public sealed class PlayerCombat : MonoBehaviour
     [SerializeField] private float meleeRange = 3f;
     [SerializeField] private float gunRange = 120f;
     [SerializeField] private BulletProjectile? bulletPrefab;
-    [SerializeField] private Transform? weaponMount;
     [SerializeField] private Transform? muzzle;
-
-    [Header("Weapon Models")]
-    [SerializeField] private GameObject? pistolModel;
-    [SerializeField] private GameObject? shotgunModel;
-    [SerializeField] private GameObject? assaultRifleModel;
-    [SerializeField] private float pistolModelScale = 10f;
-    [SerializeField] private float shotgunModelScale = 10f;
-    [SerializeField] private float assaultRifleModelScale = 10f;
     [SerializeField] private float bulletSpeed = 45f;
     [SerializeField] private int bulletPierceCount;
     [SerializeField] private float bulletLifetimeSeconds = 2.5f;
@@ -79,7 +69,6 @@ public sealed class PlayerCombat : MonoBehaviour
     private WeaponId currentGun;
     private float spreadMultiplier = 1f;
     private int pierceBonus;
-    private float lifetimeBonusSeconds;
     private BulletType currentBulletType = BulletType.Normal;
 
     public event Action<WeaponId>? GunChanged;
@@ -87,8 +76,6 @@ public sealed class PlayerCombat : MonoBehaviour
     private Light? muzzleLight;
     private ParticleSystem? muzzleParticles;
     private Coroutine? muzzleFlashRoutine;
-
-    private GameObject? currentWeaponVisual;
 
     private void Update()
     {
@@ -105,13 +92,9 @@ public sealed class PlayerCombat : MonoBehaviour
 
     private void Awake()
     {
-        EnsureWeaponMount();
-
         currentGun = startingGun;
         ApplyGunStats(currentGun);
         GunChanged?.Invoke(currentGun);
-
-        EquipWeaponVisual(currentGun);
 
         if (enableMuzzleFlash)
         {
@@ -295,8 +278,7 @@ public sealed class PlayerCombat : MonoBehaviour
 
     public void AddBulletLifetime(float additionalSeconds)
     {
-        lifetimeBonusSeconds = Mathf.Max(0f, lifetimeBonusSeconds + additionalSeconds);
-        ApplyGunStats(currentGun);
+        bulletLifetimeSeconds = Mathf.Max(0.1f, bulletLifetimeSeconds + additionalSeconds);
     }
 
     public void AddPierce(int additionalPierce)
@@ -319,8 +301,6 @@ public sealed class PlayerCombat : MonoBehaviour
 
     public Transform? Muzzle => muzzle;
 
-    public Transform? WeaponMount => weaponMount;
-
     public BulletType CurrentBulletType => currentBulletType;
 
     public void SetBulletType(BulletType type)
@@ -335,8 +315,6 @@ public sealed class PlayerCombat : MonoBehaviour
         nextFireTime = 0f;
 
         GunChanged?.Invoke(currentGun);
-
-        EquipWeaponVisual(currentGun);
 
         if (debugHits)
         {
@@ -392,8 +370,6 @@ public sealed class PlayerCombat : MonoBehaviour
 
     private void EnsureMuzzleFlashObjects()
     {
-        EnsureWeaponMount();
-
         if (muzzle == null)
         {
             return;
@@ -452,89 +428,6 @@ public sealed class PlayerCombat : MonoBehaviour
         }
     }
 
-    private void EnsureWeaponMount()
-    {
-        if (weaponMount == null)
-        {
-            Transform? existing = transform.Find("WeaponMount");
-            if (existing != null)
-            {
-                weaponMount = existing;
-            }
-            else
-            {
-                GameObject mount = new GameObject("WeaponMount");
-                mount.transform.SetParent(transform, false);
-                mount.transform.localPosition = new Vector3(0.3f, 1.2f, 0.4f);
-                mount.transform.localRotation = Quaternion.identity;
-                weaponMount = mount.transform;
-            }
-        }
-
-        if (muzzle == null && weaponMount != null)
-        {
-            Transform? existingMuzzle = weaponMount.Find("Muzzle");
-            if (existingMuzzle != null)
-            {
-                muzzle = existingMuzzle;
-            }
-            else
-            {
-                GameObject muzzleObject = new GameObject("Muzzle");
-                muzzleObject.transform.SetParent(weaponMount, false);
-                muzzleObject.transform.localPosition = new Vector3(0f, 0f, 0.6f);
-                muzzleObject.transform.localRotation = Quaternion.identity;
-                muzzle = muzzleObject.transform;
-            }
-        }
-    }
-
-    private void EquipWeaponVisual(WeaponId weapon)
-    {
-        EnsureWeaponMount();
-
-        if (weaponMount == null)
-        {
-            return;
-        }
-
-        if (currentWeaponVisual != null)
-        {
-            Destroy(currentWeaponVisual);
-            currentWeaponVisual = null;
-        }
-
-        GameObject? prefab = weapon switch
-        {
-            WeaponId.Pistol => pistolModel,
-            WeaponId.Shotgun => shotgunModel,
-            _ => assaultRifleModel
-        };
-
-        if (prefab == null)
-        {
-            return;
-        }
-
-        currentWeaponVisual = Instantiate(prefab, weaponMount);
-        currentWeaponVisual.name = $"{weapon}Model";
-        currentWeaponVisual.transform.localPosition = Vector3.zero;
-        currentWeaponVisual.transform.localRotation = Quaternion.identity;
-        float scale = weapon switch
-        {
-            WeaponId.Pistol => pistolModelScale,
-            WeaponId.Shotgun => shotgunModelScale,
-            _ => assaultRifleModelScale
-        };
-        currentWeaponVisual.transform.localScale = Vector3.one * Mathf.Max(0.001f, scale);
-
-        Transform? modelMuzzle = currentWeaponVisual.transform.Find("Muzzle");
-        if (modelMuzzle != null)
-        {
-            muzzle = modelMuzzle;
-        }
-    }
-
     private WeaponStats GetCurrentStats()
     {
         return currentGun switch
@@ -554,7 +447,7 @@ public sealed class PlayerCombat : MonoBehaviour
                 damage = 25,
                 fireRateSeconds = 0.5f,
                 bulletSpeed = 55f,
-                bulletLifetimeSeconds = 1.0f,
+                bulletLifetimeSeconds = 1.6f,
                 pierceCount = 0,
                 pellets = 1,
                 spreadDegrees = 0f
@@ -564,7 +457,7 @@ public sealed class PlayerCombat : MonoBehaviour
                 damage = 20,
                 fireRateSeconds = 1.0f,
                 bulletSpeed = 45f,
-                bulletLifetimeSeconds = 0.3f,
+                bulletLifetimeSeconds = 0.45f,
                 pierceCount = 0,
                 pellets = 6,
                 spreadDegrees = 14f
@@ -574,7 +467,7 @@ public sealed class PlayerCombat : MonoBehaviour
                 damage = 25,
                 fireRateSeconds = 0.25f,
                 bulletSpeed = 70f,
-                bulletLifetimeSeconds = 1.1f,
+                bulletLifetimeSeconds = 1.9f,
                 pierceCount = 0,
                 pellets = 1,
                 spreadDegrees = 2.5f
@@ -584,7 +477,7 @@ public sealed class PlayerCombat : MonoBehaviour
         damage = stats.damage;
         fireRateSeconds = stats.fireRateSeconds;
         bulletSpeed = stats.bulletSpeed;
-        bulletLifetimeSeconds = Mathf.Max(0.05f, stats.bulletLifetimeSeconds + lifetimeBonusSeconds);
+        bulletLifetimeSeconds = stats.bulletLifetimeSeconds;
         bulletPierceCount = stats.pierceCount + pierceBonus;
     }
 }

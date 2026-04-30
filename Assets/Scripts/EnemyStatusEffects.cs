@@ -96,7 +96,7 @@ public sealed class EnemyStatusEffects : MonoBehaviour
             animator.speed = prevAnimSpeed;
         }
 
-        if (agent != null && agent.enabled && agent.isOnNavMesh)
+        if (canStopAgent && agent != null)
         {
             agent.isStopped = wasStopped;
         }
