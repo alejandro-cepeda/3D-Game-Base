@@ -4,14 +4,6 @@ using System.Collections;
 
 public sealed class PlayerCombat : MonoBehaviour
 {
-    [Header("Audio")]
-[SerializeField] private AudioSource? audioSource;
-[SerializeField] private AudioClip? pistolSound;
-[SerializeField] private AudioClip? shotgunSound;
-[SerializeField] private AudioClip? assaultRifleSound;
-
-// Internal variable to track the currently active sound
-private AudioClip? currentGunshotSound;
     public enum WeaponType
     {
         Melee,
@@ -45,7 +37,6 @@ private AudioClip? currentGunshotSound;
 
         public int pellets;
         public float spreadDegrees;
-        public AudioClip gunshotSound;
     }
 
     [SerializeField] private WeaponType startingWeapon = WeaponType.Gun;
@@ -126,10 +117,6 @@ private AudioClip? currentGunshotSound;
         {
             EnsureMuzzleFlashObjects();
         }
-        if(audioSource == null)
-        {
-            audioSource = GetComponent<AudioSource>();
-        }
     }
 
     private void TryAttack()
@@ -203,11 +190,7 @@ private AudioClip? currentGunshotSound;
                     projectile.ConfigureVisuals(1.5f, true, new Color(0.6f, 0.9f, 1f, 1f));
                 }
             }
-            if (audioSource != null && currentGunshotSound != null)
-            {
-                audioSource.pitch = UnityEngine.Random.Range(0.9f, 1.1f);
-                audioSource.PlayOneShot(currentGunshotSound);
-            }
+
             if (debugHits)
             {
                 Debug.Log($"[PlayerCombat] Fired {pellets} projectile(s) with {currentGun}. Damage: {damage} Speed: {bulletSpeed} Lifetime: {bulletLifetimeSeconds} Pierce: {bulletPierceCount}", this);
@@ -574,8 +557,7 @@ private AudioClip? currentGunshotSound;
                 bulletLifetimeSeconds = 1.0f,
                 pierceCount = 0,
                 pellets = 1,
-                spreadDegrees = 0f,
-                gunshotSound = pistolSound
+                spreadDegrees = 0f
             },
             WeaponId.Shotgun => new WeaponStats
             {
@@ -585,8 +567,7 @@ private AudioClip? currentGunshotSound;
                 bulletLifetimeSeconds = 0.3f,
                 pierceCount = 0,
                 pellets = 6,
-                spreadDegrees = 14f,
-                gunshotSound = shotgunSound
+                spreadDegrees = 14f
             },
             _ => new WeaponStats
             {
@@ -596,9 +577,7 @@ private AudioClip? currentGunshotSound;
                 bulletLifetimeSeconds = 1.1f,
                 pierceCount = 0,
                 pellets = 1,
-                spreadDegrees = 2.5f,
-                gunshotSound = assaultRifleSound
-
+                spreadDegrees = 2.5f
             }
         };
 
@@ -607,6 +586,5 @@ private AudioClip? currentGunshotSound;
         bulletSpeed = stats.bulletSpeed;
         bulletLifetimeSeconds = Mathf.Max(0.05f, stats.bulletLifetimeSeconds + lifetimeBonusSeconds);
         bulletPierceCount = stats.pierceCount + pierceBonus;
-        currentGunshotSound = stats.gunshotSound;
     }
 }
