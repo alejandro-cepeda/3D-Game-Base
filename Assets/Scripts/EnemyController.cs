@@ -23,11 +23,11 @@ public sealed class EnemyController : MonoBehaviour
     [Header("Animation")]
     [SerializeField] private Animator? animator;
     // Animation hashes for performance (better than strings)
-    private static readonly int BlendHash = Animator.StringToHash("Speed");
+    private static readonly int BlendHash = Animator.StringToHash("Blend");
     private static readonly int AttackTriggerHash = Animator.StringToHash("Attack");
     [Header("Animation Triggers")]
     private static readonly int HitTriggerHash = Animator.StringToHash("Hit");
-    private static readonly int DeathTriggerHash = Animator.StringToHash("Dead");
+    private static readonly int DeathTriggerHash = Animator.StringToHash("Death");
     private NavMeshAgent agent = null!;
     private Transform? target;
     private Health? targetHealth;
@@ -93,20 +93,7 @@ public sealed class EnemyController : MonoBehaviour
 
     private void Update()
     {
-        if (selfHealth != null && selfHealth.IsDead)
-        {
-            if (animator != null)
-            {
-                var stateInfo = animator.GetCurrentAnimatorStateInfo(0);
-                if (stateInfo.IsName("death") && stateInfo.normalizedTime >= 0.95f)
-                {
-                    animator.speed = 0f;
-                }
-            }
-            return;
-        }
-
-        if (target == null || selfHealth == null) return;
+        if (target == null || selfHealth == null || selfHealth.IsDead) return;
 
         HandleProximitySpeed();
         agent.SetDestination(target.position);
@@ -141,7 +128,7 @@ public sealed class EnemyController : MonoBehaviour
         {
             if (HasParameter(animator, BlendHash))
             {
-                float normalized = sprintSpeed <= 0f ? 0f : Mathf.Clamp(agent.velocity.magnitude / sprintSpeed * 2f, 0f, 2f);
+                float normalized = sprintSpeed <= 0f ? 0f : Mathf.Clamp01(agent.velocity.magnitude / sprintSpeed);
                 animator.SetFloat(BlendHash, normalized);
             }
         }
@@ -204,8 +191,6 @@ public sealed class EnemyController : MonoBehaviour
     }
     private void OnDamaged(Health health, int damageTaken)
     {
-        if (health.IsDead) return;
-
         if (animator != null)
         {
             animator.SetTrigger(HitTriggerHash);
@@ -216,12 +201,6 @@ public sealed class EnemyController : MonoBehaviour
         // 1. Play Death Animation
         if (animator != null)
         {
-            if (HasParameter(animator, HitTriggerHash))
-                animator.ResetTrigger(HitTriggerHash);
-            if (HasParameter(animator, AttackTriggerHash))
-                animator.ResetTrigger(AttackTriggerHash);
-            if (HasParameter(animator, BlendHash))
-                animator.SetFloat(BlendHash, 0f);
             animator.SetTrigger(DeathTriggerHash);
         }
 
@@ -237,7 +216,7 @@ public sealed class EnemyController : MonoBehaviour
         }
 
         // 4. Clean up the object after a delay (e.g., 3 seconds)
-        Destroy(gameObject, 1.5f);
+        Destroy(gameObject, 3f);
     }
 
     private static bool HasParameter(Animator a, int hash)
