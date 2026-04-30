@@ -9,7 +9,8 @@ public sealed class BulletProjectile : MonoBehaviour
         Normal,
         Freeze,
         Poison,
-        Explosive
+        Explosive,
+        Gas
     }
     [SerializeField] private int damage = 25;
     [SerializeField] private float speed = 35f;
@@ -33,6 +34,12 @@ public sealed class BulletProjectile : MonoBehaviour
     private Collider? col;
 
     private BulletType bulletType;
+
+    private static int GetPierceCost(Collider other)
+    {
+        PierceCost? cost = other.GetComponentInParent<PierceCost>();
+        return cost != null ? cost.Cost : 1;
+    }
 
     private void Awake()
     {
@@ -210,7 +217,16 @@ public sealed class BulletProjectile : MonoBehaviour
                 Debug.Log($"[Bullet] Applying {damage} damage to {health.name}.", this);
             }
 
-            health.TakeDamage(damage);
+            int pierceCost = GetPierceCost(other);
+
+            int appliedDamage = damage;
+            if (pierceCost > 1 && remainingPierces < pierceCost)
+            {
+                float ratio = Mathf.Clamp01(remainingPierces / (float)pierceCost);
+                appliedDamage = Mathf.Max(1, Mathf.RoundToInt(damage * ratio));
+            }
+
+            health.TakeDamage(appliedDamage);
 
             EnemyStatusEffects? effects = other.GetComponentInParent<EnemyStatusEffects>();
             if (effects != null)
@@ -224,6 +240,25 @@ public sealed class BulletProjectile : MonoBehaviour
                     effects.ApplyPoison(5f, 5f);
                 }
             }
+
+            if (bulletType == BulletType.Gas)
+            {
+                EnemyGasCloud? cloud = other.GetComponentInParent<EnemyGasCloud>();
+                if (cloud == null)
+                {
+                    cloud = other.GetComponentInParent<Health>()?.gameObject.AddComponent<EnemyGasCloud>();
+                }
+
+                if (cloud != null)
+                {
+                    cloud.Refresh(5f, 2.5f);
+                }
+
+                if (effects != null)
+                {
+                    effects.ApplyPoison(5f, 5f);
+                }
+            }
         }
         else
         {
@@ -233,10 +268,19 @@ public sealed class BulletProjectile : MonoBehaviour
             }
         }
 
-        if (remainingPierces > 0)
+        if (health != null)
         {
-            remainingPierces--;
-            return;
+            int pierceCost = GetPierceCost(other);
+
+            if (remainingPierces >= pierceCost)
+            {
+                remainingPierces -= pierceCost;
+
+                if (remainingPierces > 0)
+                {
+                    return;
+                }
+            }
         }
 
         if (debugHits)

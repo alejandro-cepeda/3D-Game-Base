@@ -9,7 +9,7 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private bool faceMouse = true;
     [SerializeField] private bool faceMouseOnlyWhileAttacking = true;
     [SerializeField] private float faceMouseTurnSpeedDegreesPerSecond = 1080f;
-    [SerializeField] private float jumpForce = 9.0f;
+    [SerializeField] private float jumpForce = 5.5f;
     [SerializeField] private Transform groundCheck;
     [SerializeField] private float groundCheckRadius = 0.2f;
     [SerializeField] private LayerMask groundLayers = ~0;
@@ -68,14 +68,13 @@ public class PlayerMovement : MonoBehaviour
         {
             desiredVelocity = new Vector3(
                 movementDirection.x * currentSpeed,
-                0f,
+                rb.linearVelocity.y,
                 movementDirection.z * currentSpeed
             );
 
             if (jumpPressed && isGrounded)
             {
-                // Reset vertical velocity before jumping to ensure consistent jump heights
-                rb.linearVelocity = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
+                desiredVelocity = new Vector3(desiredVelocity.x, 0f, desiredVelocity.z);
                 rb.AddForce(Vector3.up * jumpForce, ForceMode.VelocityChange);
             }
         }
@@ -130,8 +129,7 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
 
-        // Apply horizontal movement but preserve the existing vertical velocity (gravity, jumping)
-        rb.linearVelocity = new Vector3(desiredVelocity.x, rb.linearVelocity.y, desiredVelocity.z);
+        rb.linearVelocity = desiredVelocity;
     }
 
     private void RotateTowardsMouse()
