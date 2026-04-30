@@ -31,6 +31,7 @@ public sealed class GameManager : MonoBehaviour
         ProjectileLifetime
     }
     [SerializeField] private string sceneToReload = "MainGameplay";
+    [SerializeField] private string gameplaySceneName = "MainGameplay";
     [SerializeField] private bool debugEvents;
     [SerializeField] private int upgradeScoreThreshold = 10;
     [SerializeField] private float widerViewZoomOutDistance = 7.5f;
@@ -58,6 +59,7 @@ public sealed class GameManager : MonoBehaviour
     private GameObject? gameOverPanel;
     private GameObject? upgradePanel;
     private GameObject? hudRoot;
+    private Canvas? hudCanvas;
 
     private int nextUpgradeScore;
     private int pendingUpgrades;
@@ -137,14 +139,25 @@ public sealed class GameManager : MonoBehaviour
         WirePlayerCombat();
         SetScoreText();
         SetUpgradesText();
+        UpdateUpgradeTiersText();
         UpdateCoinsText();
         UpdatePlayerHealthUi();
         HideGameOver();
         HideUpgradeChoice();
 
-        if (hudRoot != null)
         {
-            hudRoot.SetActive(SceneManager.GetActiveScene().name == sceneToReload);
+            string sceneName = SceneManager.GetActiveScene().name;
+            string gameplayName = string.IsNullOrWhiteSpace(gameplaySceneName) ? sceneToReload : gameplaySceneName;
+            bool showHud = sceneName == gameplayName;
+
+            if (hudCanvas != null)
+            {
+                hudCanvas.gameObject.SetActive(showHud);
+            }
+            else if (hudRoot != null)
+            {
+                hudRoot.SetActive(showHud);
+            }
         }
 
         if (nextUpgradeScore <= 0)
@@ -165,12 +178,14 @@ public sealed class GameManager : MonoBehaviour
         }
 
         SetUpgradesText();
+        UpdateUpgradeTiersText();
     }
 
     public void AddCoins(int amount)
     {
         coins = Mathf.Max(0, coins + amount);
         UpdateCoinsText();
+        UpdateUpgradeTiersText();
     }
 
     public void ResetScore()
@@ -468,6 +483,7 @@ public sealed class GameManager : MonoBehaviour
 
         pendingUpgrades = Mathf.Max(0, pendingUpgrades - 1);
         SetUpgradesText();
+        UpdateUpgradeTiersText();
 
         if (pendingUpgrades > 0)
         {
@@ -824,6 +840,8 @@ public sealed class GameManager : MonoBehaviour
 
     private void UpdateUpgradeTiersText()
     {
+        EnsureUi();
+
         if (upgradeTiersText == null)
         {
             return;
@@ -861,14 +879,15 @@ public sealed class GameManager : MonoBehaviour
 
     private void EnsureUi()
     {
+        Canvas canvas = FindOrCreateHudCanvas();
+        hudCanvas = canvas;
+
+        EnsureEventSystem();
+
         if (scoreText != null && weaponText != null && upgradesText != null && coinsText != null && upgradeTiersText != null && playerHealthFill != null && playerHealthText != null && gameOverPanel != null && upgradePanel != null)
         {
             return;
         }
-
-        Canvas canvas = FindOrCreateHudCanvas();
-
-        EnsureEventSystem();
 
         if (hudRoot == null)
         {
@@ -1209,16 +1228,16 @@ public sealed class GameManager : MonoBehaviour
 
     private Canvas FindOrCreateHudCanvas()
     {
-        Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+        Canvas[] canvases = Resources.FindObjectsOfTypeAll<Canvas>();
         foreach (Canvas c in canvases)
         {
-            if (c != null && c.renderMode == RenderMode.ScreenSpaceOverlay)
+            if (c != null && c.name == "GameHUDCanvas")
             {
                 return c;
             }
         }
 
-        GameObject canvasObject = new GameObject("UI", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+        GameObject canvasObject = new GameObject("GameHUDCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
         Canvas canvas = canvasObject.GetComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 1000;
@@ -1226,6 +1245,8 @@ public sealed class GameManager : MonoBehaviour
         CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
+
+        DontDestroyOnLoad(canvasObject);
 
         return canvas;
     }

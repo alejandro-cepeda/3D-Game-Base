@@ -54,7 +54,7 @@ public sealed class BulletProjectile : MonoBehaviour
         remainingArmDelay = armDelaySeconds;
         armed = remainingArmDelay <= 0f;
 
-        remainingPierces = pierceCount;
+        remainingPierces = pierceCount + 1;
         remainingLifetime = lifetimeSeconds;
 
         if (useTrail)
@@ -150,7 +150,7 @@ public sealed class BulletProjectile : MonoBehaviour
         damage = projectileDamage;
         speed = projectileSpeed;
         pierceCount = projectilePierceCount;
-        remainingPierces = pierceCount;
+        remainingPierces = pierceCount + 1;
 
         this.bulletType = (BulletType)bulletType;
     }
@@ -205,7 +205,7 @@ public sealed class BulletProjectile : MonoBehaviour
 
         if (bulletType == BulletType.Explosive)
         {
-            ExplodeAt(other.transform.position);
+            ExplodeAt(transform.position);
             Destroy(gameObject);
             return;
         }
@@ -295,7 +295,7 @@ public sealed class BulletProjectile : MonoBehaviour
     {
         float radius = 3.5f;
         int explosionDamage = damage + 30;
-        Collider[] colliders = Physics.OverlapSphere(position, radius, ~0, QueryTriggerInteraction.Ignore);
+        Collider[] colliders = Physics.OverlapSphere(position, radius, ~0, QueryTriggerInteraction.Collide);
         for (int i = 0; i < colliders.Length; i++)
         {
             Collider c = colliders[i];
