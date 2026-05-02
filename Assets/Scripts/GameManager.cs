@@ -71,6 +71,10 @@ public sealed class GameManager : MonoBehaviour
     private int radiationRadiusPickCount;
     private int moveSpeedPickCount;
     private int projectileLifetimePickCount;
+    private int freezePickCount;
+    private int poisonPickCount;
+    private int explosivePickCount;
+    private int gasPickCount;
 
     private UpgradeId[] currentUpgradeChoices = new UpgradeId[3];
 
@@ -341,6 +345,7 @@ public sealed class GameManager : MonoBehaviour
             if (playerCombat != null)
             {
                 playerCombat.SetBulletType(PlayerCombat.BulletType.Freeze);
+                freezePickCount++;
             }
         }
         else if (choice == UpgradeId.BulletPoison)
@@ -348,6 +353,7 @@ public sealed class GameManager : MonoBehaviour
             if (playerCombat != null)
             {
                 playerCombat.SetBulletType(PlayerCombat.BulletType.Poison);
+                poisonPickCount++;
             }
         }
         else if (choice == UpgradeId.BulletExplosive)
@@ -355,6 +361,7 @@ public sealed class GameManager : MonoBehaviour
             if (playerCombat != null)
             {
                 playerCombat.SetBulletType(PlayerCombat.BulletType.Explosive);
+                explosivePickCount++;
             }
         }
         else if (choice == UpgradeId.BulletGas)
@@ -362,6 +369,7 @@ public sealed class GameManager : MonoBehaviour
             if (playerCombat != null)
             {
                 playerCombat.SetBulletType(PlayerCombat.BulletType.Gas);
+                gasPickCount++;
             }
         }
         else if (choice == UpgradeId.ProjectileLifetime)
@@ -488,20 +496,60 @@ public sealed class GameManager : MonoBehaviour
 
         for (int i = 0; i < 3; i++)
         {
-            Transform? buttonText = upgradePanel.transform.Find($"Upgrade{i}/Text");
-            if (buttonText == null)
+            Transform? buttonTransform = upgradePanel.transform.Find($"Upgrade{i}");
+            if (buttonTransform == null) continue;
+            
+            Transform? textTransform = buttonTransform.Find("Text");
+            TMP_Text? text = textTransform != null ? textTransform.GetComponent<TMP_Text>() : null;
+            Image? img = buttonTransform.GetComponent<Image>();
+
+            UpgradeId choice = currentUpgradeChoices[i];
+            string spriteName = GetCardSpriteName(choice);
+            Sprite? cardSprite = null;
+
+            if (!string.IsNullOrEmpty(spriteName))
             {
-                continue;
+                cardSprite = Resources.Load<Sprite>($"UpgradeCards/{spriteName}");
             }
 
-            TMP_Text? text = buttonText.GetComponent<TMP_Text>();
-            if (text == null)
-            {
-                continue;
-            }
+            string logPath = Application.dataPath + "/../debug_log.txt";
+            System.IO.File.AppendAllText(logPath, $"[UpgradeUI] Choice: {choice}, SpriteName: {spriteName}, CardLoaded: {cardSprite != null}, ImgComponent: {img != null}\n");
 
-            text.text = GetUpgradeLabel(currentUpgradeChoices[i]);
+            if (cardSprite != null)
+            {
+                if (img != null) img.sprite = cardSprite;
+                if (textTransform != null) textTransform.gameObject.SetActive(false);
+            }
+            else
+            {
+                if (img != null) img.sprite = null;
+                if (textTransform != null) textTransform.gameObject.SetActive(true);
+                if (text != null) text.text = GetUpgradeLabel(choice);
+            }
         }
+    }
+
+    private string GetCardSpriteName(UpgradeId id)
+    {
+        return id switch
+        {
+            UpgradeId.MoveSpeed => $"hermes_{Mathf.Clamp(moveSpeedPickCount + 1, 1, 3)}",
+            UpgradeId.HealthRegen => $"healer_{Mathf.Clamp(regenPickCount + 1, 1, 3)}",
+            UpgradeId.MaxHealth => $"angel_{Mathf.Clamp(maxHealthPickCount + 1, 1, 3)}",
+            UpgradeId.WeaponAssaultRifle => "reaper_rifle",
+            UpgradeId.WeaponShotgun => "reaper_shotgun",
+            UpgradeId.WiderView => $"watcher_{Mathf.Clamp(widerViewPickCount + 1, 1, 3)}",
+            UpgradeId.LaserSight => "ra",
+            UpgradeId.Accuracy => $"apollo_{Mathf.Clamp(accuracyPickCount + 1, 1, 3)}",
+            UpgradeId.Radiation => $"gamma_{Mathf.Clamp(radiationPickCount + 1, 1, 3)}",
+            UpgradeId.RadiationRadius => $"gamma_{Mathf.Clamp(radiationPickCount + 1, 1, 3)}",
+            UpgradeId.BulletPoison => $"cyanide_{Mathf.Clamp(poisonPickCount + 1, 1, 4)}",
+            UpgradeId.BulletGas => $"cyanide_{Mathf.Clamp(gasPickCount + 1, 1, 4)}",
+            UpgradeId.BulletFreeze => $"sloth_{Mathf.Clamp(freezePickCount + 1, 1, 4)}",
+            UpgradeId.BulletExplosive => $"hades_{Mathf.Clamp(explosivePickCount + 1, 1, 4)}",
+            UpgradeId.BulletPierce => $"ares_{Mathf.Clamp(piercePickCount + 1, 1, 4)}",
+            _ => ""
+        };
     }
 
     private void RollUpgradeChoices()
@@ -678,6 +726,10 @@ public sealed class GameManager : MonoBehaviour
         radiationRadiusPickCount = 0;
         moveSpeedPickCount = 0;
         projectileLifetimePickCount = 0;
+        freezePickCount = 0;
+        poisonPickCount = 0;
+        explosivePickCount = 0;
+        gasPickCount = 0;
         SceneManager.LoadScene(sceneToReload);
     }
 
@@ -1161,9 +1213,9 @@ public sealed class GameManager : MonoBehaviour
             titleText.raycastTarget = false;
             titleText.text = "Choose an Upgrade";
 
-            CreateUpgradeButton(panelObject.transform, new Vector2(-360f, 0f), "Wider View", 0);
+            CreateUpgradeButton(panelObject.transform, new Vector2(-300f, 0f), "Wider View", 0);
             CreateUpgradeButton(panelObject.transform, new Vector2(0f, 0f), "Weapon Upgrade", 1);
-            CreateUpgradeButton(panelObject.transform, new Vector2(360f, 0f), "Move Faster", 2);
+            CreateUpgradeButton(panelObject.transform, new Vector2(300f, 0f), "Move Faster", 2);
 
             upgradePanel = panelObject;
             upgradePanel.SetActive(false);
@@ -1180,7 +1232,7 @@ public sealed class GameManager : MonoBehaviour
         rect.anchorMax = new Vector2(0.5f, 0.5f);
         rect.pivot = new Vector2(0.5f, 0.5f);
         rect.anchoredPosition = anchoredPosition;
-        rect.sizeDelta = new Vector2(300f, 120f);
+        rect.sizeDelta = new Vector2(240f, 360f);
 
         Image image = buttonObject.GetComponent<Image>();
         image.sprite = GetUiSprite();
@@ -1197,7 +1249,7 @@ public sealed class GameManager : MonoBehaviour
         textRect.anchorMax = new Vector2(0.5f, 0.5f);
         textRect.pivot = new Vector2(0.5f, 0.5f);
         textRect.anchoredPosition = Vector2.zero;
-        textRect.sizeDelta = new Vector2(280f, 110f);
+        textRect.sizeDelta = new Vector2(220f, 340f);
 
         TextMeshProUGUI text = textObject.GetComponent<TextMeshProUGUI>();
         text.fontSize = 26;
