@@ -37,7 +37,7 @@ public class ArenaGenerator : EditorWindow
             if (targetShader != null)
             {
                 lightGreyMat = new Material(targetShader);
-                lightGreyMat.color = new Color(0.75f, 0.75f, 0.75f); // Light grey
+                lightGreyMat.color = Color.black; // Black floor
                 if (!AssetDatabase.IsValidFolder("Assets/Materials"))
                 {
                     AssetDatabase.CreateFolder("Assets", "Materials");
