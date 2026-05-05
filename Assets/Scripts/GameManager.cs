@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using System.Collections;
 using TMPro;
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem.UI;
@@ -58,6 +59,8 @@ public sealed class GameManager : MonoBehaviour
     private Image? playerHealthFill;
     private GameObject? gameOverPanel;
     private GameObject? upgradePanel;
+    private GameObject? tooltipPanel;
+    private TMP_Text? tooltipText;
     private GameObject? hudRoot;
     private Canvas? hudCanvas;
 
@@ -256,6 +259,7 @@ public sealed class GameManager : MonoBehaviour
 
     private void HideUpgradeChoice()
     {
+        HideTooltip();
         if (upgradePanel != null)
         {
             upgradePanel.SetActive(false);
@@ -503,6 +507,43 @@ public sealed class GameManager : MonoBehaviour
         }
     }
 
+    private void ApplyUpgradeWithEffect(int index, PointerEventData data)
+    {
+        Transform? buttonTransform = upgradePanel?.transform.Find($"Upgrade{index}");
+        if (buttonTransform == null) return;
+        RectTransform buttonRect = buttonTransform.GetComponent<RectTransform>();
+
+        PlayerCombat? combat = FindFirstObjectByType<PlayerCombat>();
+        if (combat != null)
+        {
+            combat.PlayGunshotSoundUI();
+        }
+
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(buttonRect, data.position, data.pressEventCamera, out Vector2 localPoint);
+        GameObject holeObj = new GameObject("BulletHole", typeof(RectTransform), typeof(Image));
+        holeObj.transform.SetParent(buttonRect, false);
+        holeObj.transform.SetAsLastSibling();
+        
+        RectTransform holeRect = holeObj.GetComponent<RectTransform>();
+        holeRect.anchoredPosition = localPoint;
+        holeRect.sizeDelta = new Vector2(80f, 80f);
+        holeRect.localRotation = Quaternion.Euler(0f, 0f, UnityEngine.Random.Range(0f, 360f));
+
+        Image holeImg = holeObj.GetComponent<Image>();
+        holeImg.sprite = Resources.Load<Sprite>("bulletHole");
+
+        Button? button = buttonRect.GetComponent<Button>();
+        if (button != null) button.interactable = false;
+
+        StartCoroutine(DelayedApplyUpgrade(index));
+    }
+
+    private IEnumerator DelayedApplyUpgrade(int index)
+    {
+        yield return new WaitForSecondsRealtime(0.35f);
+        ApplyUpgrade(index);
+    }
+
     private void UpdateUpgradeLabels()
     {
         if (upgradePanel == null)
@@ -514,10 +555,24 @@ public sealed class GameManager : MonoBehaviour
         {
             Transform? buttonTransform = upgradePanel.transform.Find($"Upgrade{i}");
             if (buttonTransform == null) continue;
+
+            Button? btn = buttonTransform.GetComponent<Button>();
+            if (btn != null) btn.interactable = true;
+
+            foreach (Transform child in buttonTransform)
+            {
+                if (child.name == "BulletHole")
+                {
+                    Destroy(child.gameObject);
+                }
+            }
             
             Transform? textTransform = buttonTransform.Find("Text");
             TMP_Text? text = textTransform != null ? textTransform.GetComponent<TMP_Text>() : null;
             Image? img = buttonTransform.GetComponent<Image>();
+            Transform? cardGraphicTransform = buttonTransform.Find("CardGraphic");
+            Image? cardImg = cardGraphicTransform != null ? cardGraphicTransform.GetComponent<Image>() : null;
+            Mask? mask = buttonTransform.GetComponent<Mask>();
 
             UpgradeId choice = currentUpgradeChoices[i];
             string spriteName = GetCardSpriteName(choice);
@@ -529,16 +584,26 @@ public sealed class GameManager : MonoBehaviour
             }
 
             string logPath = Application.dataPath + "/../debug_log.txt";
-            System.IO.File.AppendAllText(logPath, $"[UpgradeUI] Choice: {choice}, SpriteName: {spriteName}, CardLoaded: {cardSprite != null}, ImgComponent: {img != null}\n");
+            System.IO.File.AppendAllText(logPath, $"[UpgradeUI] Choice: {choice}, SpriteName: {spriteName}, CardLoaded: {cardSprite != null}, CardImgComponent: {cardImg != null}\n");
 
             if (cardSprite != null)
             {
-                if (img != null) img.sprite = cardSprite;
+                if (cardImg != null)
+                {
+                    cardImg.sprite = cardSprite;
+                    cardImg.color = Color.white;
+                }
+                if (mask != null) mask.showMaskGraphic = false;
                 if (textTransform != null) textTransform.gameObject.SetActive(false);
             }
             else
             {
-                if (img != null) img.sprite = null;
+                if (cardImg != null)
+                {
+                    cardImg.sprite = null;
+                    cardImg.color = Color.clear;
+                }
+                if (mask != null) mask.showMaskGraphic = true;
                 if (textTransform != null) textTransform.gameObject.SetActive(true);
                 if (text != null) text.text = GetUpgradeLabel(choice);
             }
@@ -554,6 +619,7 @@ public sealed class GameManager : MonoBehaviour
             UpgradeId.MaxHealth => $"angel_{Mathf.Clamp(maxHealthPickCount + 1, 1, 3)}",
             UpgradeId.WeaponAssaultRifle => "reaper_rifle",
             UpgradeId.WeaponShotgun => "reaper_shotgun",
+            UpgradeId.WeaponPistol => "reaper_pistol",
             UpgradeId.WiderView => $"watcher_{Mathf.Clamp(widerViewPickCount + 1, 1, 3)}",
             UpgradeId.LaserSight => "ra",
             UpgradeId.Accuracy => $"apollo_{Mathf.Clamp(accuracyPickCount + 1, 1, 3)}",
@@ -564,6 +630,7 @@ public sealed class GameManager : MonoBehaviour
             UpgradeId.BulletFreeze => $"sloth_{Mathf.Clamp(freezePickCount + 1, 1, 4)}",
             UpgradeId.BulletExplosive => $"hades_{Mathf.Clamp(explosivePickCount + 1, 1, 4)}",
             UpgradeId.BulletPierce => $"ares_{Mathf.Clamp(piercePickCount + 1, 1, 4)}",
+            UpgradeId.ProjectileLifetime => $"aegis_{Mathf.Clamp(projectileLifetimePickCount + 1, 1, 4)}",
             _ => ""
         };
     }
@@ -721,6 +788,49 @@ public sealed class GameManager : MonoBehaviour
             UpgradeId.BulletGas => "Gas Bullets",
             UpgradeId.ProjectileLifetime => projectileLifetimePickCount >= projectileLifetimeCap ? "Projectile Lifetime (MAX)" : "Projectile Lifetime +",
             _ => "Upgrade"
+        };
+    }
+
+    private void ShowTooltip(int index)
+    {
+        if (tooltipPanel != null && tooltipText != null)
+        {
+            UpgradeId choice = currentUpgradeChoices[Mathf.Clamp(index, 0, currentUpgradeChoices.Length - 1)];
+            tooltipText.text = GetUpgradeDescription(choice);
+            tooltipPanel.SetActive(true);
+        }
+    }
+
+    private void HideTooltip()
+    {
+        if (tooltipPanel != null)
+        {
+            tooltipPanel.SetActive(false);
+        }
+    }
+
+    private string GetUpgradeDescription(UpgradeId id)
+    {
+        return id switch
+        {
+            UpgradeId.WiderView => "Zoom out the camera for a wider field of view.",
+            UpgradeId.WeaponPistol => "Equip the Pistol. A reliable sidearm.",
+            UpgradeId.WeaponShotgun => "Equip the Shotgun. Deadly at close range.",
+            UpgradeId.WeaponAssaultRifle => "Equip the Assault Rifle. High rate of fire.",
+            UpgradeId.LaserSight => "Adds a laser sight to your weapon.",
+            UpgradeId.MoveSpeed => "Increases your movement speed.",
+            UpgradeId.Accuracy => "Reduces weapon spread.",
+            UpgradeId.HealthRegen => "Slowly regenerates health over time.",
+            UpgradeId.MaxHealth => "Increases your maximum health capacity.",
+            UpgradeId.BulletPierce => "Bullets can pierce through multiple enemies.",
+            UpgradeId.Radiation => "Emit a radiation aura that damages nearby enemies.",
+            UpgradeId.RadiationRadius => "Increases the radius of your radiation aura.",
+            UpgradeId.BulletFreeze => "Bullets slow down enemies on hit.",
+            UpgradeId.BulletPoison => "Bullets deal damage over time.",
+            UpgradeId.BulletExplosive => "Bullets explode on impact.",
+            UpgradeId.BulletGas => "Bullets leave a toxic gas cloud.",
+            UpgradeId.ProjectileLifetime => "Increases the distance your bullets travel.",
+            _ => "An unknown upgrade."
         };
     }
 
@@ -1236,6 +1346,40 @@ public sealed class GameManager : MonoBehaviour
             CreateUpgradeButton(panelObject.transform, new Vector2(0f, 0f), "Weapon Upgrade", 1);
             CreateUpgradeButton(panelObject.transform, new Vector2(300f, 0f), "Move Faster", 2);
 
+            if (tooltipPanel == null)
+            {
+                tooltipPanel = new GameObject("TooltipPanel", typeof(RectTransform), typeof(Image));
+                tooltipPanel.transform.SetParent(panelObject.transform, false);
+
+                RectTransform tooltipRect = tooltipPanel.GetComponent<RectTransform>();
+                tooltipRect.anchorMin = new Vector2(0.5f, 0f);
+                tooltipRect.anchorMax = new Vector2(0.5f, 0f);
+                tooltipRect.pivot = new Vector2(0.5f, 0f);
+                tooltipRect.anchoredPosition = new Vector2(0f, 60f);
+                tooltipRect.sizeDelta = new Vector2(900f, 100f);
+
+                Image tooltipImg = tooltipPanel.GetComponent<Image>();
+                tooltipImg.color = new Color(0f, 0f, 0f, 0.85f);
+
+                GameObject ttTextObj = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+                ttTextObj.transform.SetParent(tooltipPanel.transform, false);
+
+                RectTransform ttTextRect = ttTextObj.GetComponent<RectTransform>();
+                ttTextRect.anchorMin = new Vector2(0f, 0f);
+                ttTextRect.anchorMax = new Vector2(1f, 1f);
+                ttTextRect.offsetMin = new Vector2(20f, 10f);
+                ttTextRect.offsetMax = new Vector2(-20f, -10f);
+
+                tooltipText = ttTextObj.GetComponent<TextMeshProUGUI>();
+                tooltipText.fontSize = 28;
+                tooltipText.color = Color.white;
+                tooltipText.alignment = TextAlignmentOptions.Center;
+                tooltipText.raycastTarget = false;
+                tooltipText.enableWordWrapping = true;
+                
+                tooltipPanel.SetActive(false);
+            }
+
             upgradePanel = panelObject;
             upgradePanel.SetActive(false);
         }
@@ -1254,11 +1398,28 @@ public sealed class GameManager : MonoBehaviour
         rect.sizeDelta = new Vector2(240f, 360f);
 
         Image image = buttonObject.GetComponent<Image>();
-        image.sprite = GetUiSprite();
+        image.sprite = GetRoundedUiSprite();
+        image.type = Image.Type.Sliced;
         image.color = new Color(1f, 1f, 1f, 0.95f);
 
+        Mask mask = buttonObject.AddComponent<Mask>();
+        mask.showMaskGraphic = false;
+
+        GameObject cardImageObj = new GameObject("CardGraphic", typeof(RectTransform), typeof(Image));
+        cardImageObj.transform.SetParent(buttonObject.transform, false);
+        cardImageObj.transform.SetAsFirstSibling();
+        
+        RectTransform cardRect = cardImageObj.GetComponent<RectTransform>();
+        cardRect.anchorMin = Vector2.zero;
+        cardRect.anchorMax = Vector2.one;
+        cardRect.offsetMin = Vector2.zero;
+        cardRect.offsetMax = Vector2.zero;
+
+        Image cardImg = cardImageObj.GetComponent<Image>();
+        cardImg.sprite = null;
+        cardImg.color = Color.clear;
+
         Button button = buttonObject.GetComponent<Button>();
-        button.onClick.AddListener(() => ApplyUpgrade(index));
 
         GameObject textObject = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
         textObject.transform.SetParent(buttonObject.transform, false);
@@ -1276,6 +1437,20 @@ public sealed class GameManager : MonoBehaviour
         text.alignment = TextAlignmentOptions.Center;
         text.raycastTarget = false;
         text.text = label;
+
+        EventTrigger trigger = buttonObject.AddComponent<EventTrigger>();
+
+        EventTrigger.Entry clickEntry = new EventTrigger.Entry { eventID = EventTriggerType.PointerClick };
+        clickEntry.callback.AddListener((data) => ApplyUpgradeWithEffect(index, (PointerEventData)data));
+        trigger.triggers.Add(clickEntry);
+
+        EventTrigger.Entry enterEntry = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+        enterEntry.callback.AddListener((data) => ShowTooltip(index));
+        trigger.triggers.Add(enterEntry);
+
+        EventTrigger.Entry exitEntry = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+        exitEntry.callback.AddListener((data) => HideTooltip());
+        trigger.triggers.Add(exitEntry);
     }
 
     private Canvas FindOrCreateHudCanvas()
@@ -1392,5 +1567,43 @@ public sealed class GameManager : MonoBehaviour
         texture.SetPixel(0, 0, Color.white);
         texture.Apply();
         return Sprite.Create(texture, new Rect(0f, 0f, 1f, 1f), new Vector2(0.5f, 0.5f));
+    }
+
+    private Sprite? roundedSprite;
+
+    private Sprite GetRoundedUiSprite()
+    {
+        if (roundedSprite != null) return roundedSprite;
+
+        int size = 128;
+        int radius = 16;
+        Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        Color[] pixels = new Color[size * size];
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float cx = size / 2f;
+                float cy = size / 2f;
+                float dx = Mathf.Max(0, Mathf.Abs(x - cx + 0.5f) - (size / 2f - radius));
+                float dy = Mathf.Max(0, Mathf.Abs(y - cy + 0.5f) - (size / 2f - radius));
+                
+                if (dx * dx + dy * dy > radius * radius)
+                {
+                    pixels[y * size + x] = Color.clear;
+                }
+                else
+                {
+                    pixels[y * size + x] = Color.white;
+                }
+            }
+        }
+
+        texture.SetPixels(pixels);
+        texture.Apply();
+
+        roundedSprite = Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, new Vector4(radius, radius, radius, radius));
+        return roundedSprite;
     }
 }

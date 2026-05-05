@@ -609,4 +609,12 @@ private AudioClip? currentGunshotSound;
         bulletPierceCount = stats.pierceCount + pierceBonus;
         currentGunshotSound = stats.gunshotSound;
     }
+
+    public void PlayGunshotSoundUI()
+    {
+        if (audioSource != null && currentGunshotSound != null)
+        {
+            audioSource.PlayOneShot(currentGunshotSound);
+        }
+    }
 }
