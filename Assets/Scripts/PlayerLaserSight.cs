@@ -78,6 +78,22 @@ public sealed class PlayerLaserSight : MonoBehaviour
         Vector3 origin = muzzle.position;
         Vector3 direction = muzzle.forward;
 
+        Camera? cam = Camera.main;
+        if (cam != null)
+        {
+            Ray mouseRay = cam.ScreenPointToRay(Input.mousePosition);
+            Plane plane = new Plane(Vector3.up, origin);
+            if (plane.Raycast(mouseRay, out float enter))
+            {
+                Vector3 pointOnPlane = mouseRay.GetPoint(enter);
+                Vector3 dirToMouse = pointOnPlane - origin;
+                if (dirToMouse.sqrMagnitude > 0.0001f)
+                {
+                    direction = dirToMouse.normalized;
+                }
+            }
+        }
+
         Ray ray = new Ray(origin, direction);
         RaycastHit[] hits = Physics.RaycastAll(ray, maxDistance, hitLayers, QueryTriggerInteraction.Ignore);
         if (hits.Length > 1)
