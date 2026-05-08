@@ -541,6 +541,23 @@ public sealed class GameManager : MonoBehaviour
     private IEnumerator DelayedApplyUpgrade(int index)
     {
         yield return new WaitForSecondsRealtime(0.35f);
+
+        AudioClip evilLaugh = Resources.Load<AudioClip>("evil_laugh");
+        if (evilLaugh != null)
+        {
+            AudioSource source = gameObject.GetComponent<AudioSource>();
+            if (source == null)
+            {
+                source = gameObject.AddComponent<AudioSource>();
+            }
+            
+            source.ignoreListenerPause = true;
+            source.clip = evilLaugh;
+            source.Play();
+
+            yield return new WaitForSecondsRealtime(evilLaugh.length);
+        }
+
         ApplyUpgrade(index);
     }
 
