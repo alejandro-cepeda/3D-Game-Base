@@ -85,6 +85,8 @@ public sealed class GameManager : MonoBehaviour
 
     private Health? playerHealth;
     private PlayerCombat? playerCombat;
+    private AudioSource? bgmSource;
+    private AudioSource? sfxSource;
 
     public static GameManager? Instance { get; private set; }
 
@@ -151,6 +153,7 @@ public sealed class GameManager : MonoBehaviour
         UpdatePlayerHealthUi();
         HideGameOver();
         HideUpgradeChoice();
+        UpdateBackgroundMusic();
 
         {
             string sceneName = SceneManager.GetActiveScene().name;
@@ -170,6 +173,35 @@ public sealed class GameManager : MonoBehaviour
         if (nextUpgradeScore <= 0)
         {
             nextUpgradeScore = upgradeScoreThreshold;
+        }
+    }
+
+    private void UpdateBackgroundMusic()
+    {
+        if (bgmSource == null)
+        {
+            bgmSource = gameObject.AddComponent<AudioSource>();
+            bgmSource.loop = true;
+            bgmSource.spatialBlend = 0f;
+        }
+
+        string sceneName = SceneManager.GetActiveScene().name;
+        string gameplayName = string.IsNullOrWhiteSpace(gameplaySceneName) ? sceneToReload : gameplaySceneName;
+        
+        string desiredMusic = (sceneName == gameplayName) ? "game_music" : "menu_music";
+        AudioClip clip = Resources.Load<AudioClip>(desiredMusic);
+        
+        if (clip != null)
+        {
+            if (bgmSource.clip != clip)
+            {
+                bgmSource.clip = clip;
+                bgmSource.Play();
+            }
+            else if (!bgmSource.isPlaying)
+            {
+                bgmSource.Play();
+            }
         }
     }
 
@@ -240,6 +272,8 @@ public sealed class GameManager : MonoBehaviour
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
         Time.timeScale = 0f;
+
+        if (bgmSource != null) bgmSource.Pause();
     }
 
     private void TryOpenUpgradeChoice()
@@ -264,6 +298,8 @@ public sealed class GameManager : MonoBehaviour
         {
             upgradePanel.SetActive(false);
         }
+
+        if (bgmSource != null) bgmSource.UnPause();
     }
 
     private void ApplyUpgrade(int index)
@@ -545,15 +581,15 @@ public sealed class GameManager : MonoBehaviour
         AudioClip evilLaugh = Resources.Load<AudioClip>("evil_laugh");
         if (evilLaugh != null)
         {
-            AudioSource source = gameObject.GetComponent<AudioSource>();
-            if (source == null)
+            if (sfxSource == null)
             {
-                source = gameObject.AddComponent<AudioSource>();
+                sfxSource = gameObject.AddComponent<AudioSource>();
+                sfxSource.ignoreListenerPause = true;
+                sfxSource.spatialBlend = 0f;
             }
             
-            source.ignoreListenerPause = true;
-            source.clip = evilLaugh;
-            source.Play();
+            sfxSource.clip = evilLaugh;
+            sfxSource.Play();
 
             yield return new WaitForSecondsRealtime(evilLaugh.length);
         }
