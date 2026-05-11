@@ -1444,6 +1444,10 @@ MonoBehaviour:
   debugHits: 1
   originHeight: 1.4
   aimAtMousePosition: 1
+  aimHorizontalAxis: RightStickHorizontal
+  aimVerticalAxis: RightStickVertical
+  aimDeadzone: 0.25
+  controllerFireButton: Fire1
   enableMuzzleFlash: 1
   muzzleFlashColor: {r: 1, g: 0.85, b: 0.4, a: 1}
   muzzleFlashLightIntensity: 10
@@ -1503,8 +1507,8 @@ Transform:
   m_GameObject: {fileID: 1129279458}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.4, z: 0}
-  m_LocalScale: {x: 6, y: 0.8, z: 6}
+  m_LocalPosition: {x: 0, y: 2.67, z: 0}
+  m_LocalScale: {x: 6, y: 5.42936, z: 6}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2055275838}
