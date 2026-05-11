@@ -76,6 +76,12 @@ private AudioClip? currentGunshotSound;
     [SerializeField] private float originHeight = 1.4f;
     [SerializeField] private bool aimAtMousePosition = true;
 
+    [Header("Controller")]
+    [SerializeField] private string aimHorizontalAxis = "RightStickHorizontal";
+    [SerializeField] private string aimVerticalAxis = "RightStickVertical";
+    [SerializeField] private float aimDeadzone = 0.25f;
+    [SerializeField] private string controllerFireButton = "Fire1";
+
     [Header("Muzzle Flash")]
     [SerializeField] private bool enableMuzzleFlash = true;
     [SerializeField] private Color muzzleFlashColor = new Color(1f, 0.85f, 0.4f, 1f);
@@ -106,9 +112,12 @@ private AudioClip? currentGunshotSound;
             return;
         }
 
-        if (Input.GetMouseButton(0))
+        Vector2 aim = new Vector2(Input.GetAxisRaw(aimHorizontalAxis), Input.GetAxisRaw(aimVerticalAxis));
+        bool controllerAiming = aim.sqrMagnitude >= aimDeadzone * aimDeadzone;
+        bool wantsFire = Input.GetMouseButton(0) || (controllerAiming && Input.GetButton(controllerFireButton));
+        if (wantsFire)
         {
-            TryAttack();
+            TryAttack(controllerAiming ? new Vector3(aim.x, 0f, aim.y).normalized : (Vector3?)null);
         }
     }
 
@@ -132,7 +141,7 @@ private AudioClip? currentGunshotSound;
         }
     }
 
-    private void TryAttack()
+    private void TryAttack(Vector3? controllerAimDirection)
     {
         if (Time.time < nextFireTime)
         {
@@ -145,8 +154,17 @@ private AudioClip? currentGunshotSound;
         {
             Quaternion rotation = muzzle.rotation;
 
+            if (controllerAimDirection != null)
+            {
+                Vector3 dir = controllerAimDirection.Value;
+                if (dir.sqrMagnitude > 0.0001f)
+                {
+                    rotation = Quaternion.LookRotation(dir, Vector3.up);
+                }
+            }
+
             Camera? aimCamera = Camera.main;
-            if (gunAimUsesMouse && aimCamera != null)
+            if (controllerAimDirection == null && gunAimUsesMouse && aimCamera != null)
             {
                 Ray aimRay = aimCamera.ScreenPointToRay(Input.mousePosition);
 

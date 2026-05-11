@@ -61,7 +61,7 @@ public sealed class PlayerRadiationAura : MonoBehaviour
                 continue;
             }
 
-            h.TakeDamage(damage);
+            h.TakeDamage(damage, false);
         }
     }
 

@@ -38,6 +38,13 @@ public sealed class GameManager : MonoBehaviour
     [SerializeField] private float widerViewOrthoSizeIncrease = 2.5f;
     [SerializeField] private float widerViewDiminishingMultiplier = 0.75f;
 
+    [Header("Controller")]
+    [SerializeField] private string openUpgradeMenuButton = "Submit";
+    [SerializeField] private string closeUpgradeMenuButton = "Cancel";
+    [SerializeField] private string upgradeChoice1Button = "Jump";
+    [SerializeField] private string upgradeChoice2Button = "Fire2";
+    [SerializeField] private string upgradeChoice3Button = "Fire3";
+
     [Header("Upgrade Caps")]
     [SerializeField] private int accuracyCap = 5;
     [SerializeField] private int regenCap = 5;
@@ -102,17 +109,35 @@ public sealed class GameManager : MonoBehaviour
     }
     private void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Tab))
+        if (Input.GetKeyDown(KeyCode.Tab) || Input.GetButtonDown(openUpgradeMenuButton))
         {
             TryOpenUpgradeChoice();
         }
 
-        if (Input.GetKeyDown(KeyCode.Escape))
+        if (Input.GetKeyDown(KeyCode.Escape) || Input.GetButtonDown(closeUpgradeMenuButton))
         {
             if (upgradePanel != null && upgradePanel.activeSelf)
             {
                 HideUpgradeChoice();
                 Time.timeScale = 1f;
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+            }
+        }
+
+        if (upgradePanel != null && upgradePanel.activeSelf)
+        {
+            if (Input.GetButtonDown(upgradeChoice1Button))
+            {
+                ApplyUpgrade(0);
+            }
+            else if (Input.GetButtonDown(upgradeChoice2Button))
+            {
+                ApplyUpgrade(1);
+            }
+            else if (Input.GetButtonDown(upgradeChoice3Button))
+            {
+                ApplyUpgrade(2);
             }
         }
     }

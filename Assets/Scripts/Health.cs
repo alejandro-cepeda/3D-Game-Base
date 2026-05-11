@@ -28,6 +28,11 @@ public sealed class Health : MonoBehaviour
 
     public void TakeDamage(int amount)
     {
+        TakeDamage(amount, true);
+    }
+
+    public void TakeDamage(int amount, bool invokeDamagedEvent)
+    {
         if (amount <= 0 || IsDead)
         {
             return;
@@ -40,7 +45,11 @@ public sealed class Health : MonoBehaviour
             Debug.Log($"[{name}] Took damage: {amount}. HP: {CurrentHealth}/{maxHealth}", this);
         }
 
-        Damaged?.Invoke(this, amount);
+        if (invokeDamagedEvent)
+        {
+            Damaged?.Invoke(this, amount);
+        }
+
         Changed?.Invoke(this);
 
         if (CurrentHealth == 0)
