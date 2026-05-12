@@ -1467,7 +1467,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Health
   maxHealth: 100
-  debugEvents: 1
+  debugEvents: 0
 --- !u!95 &993881743 stripped
 Animator:
   m_CorrespondingSourceObject: {fileID: -4748361991329772099, guid: a41d5c10b6b384100a752d8132791ac9, type: 3}
@@ -2296,6 +2296,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemySpawner
   enemyPrefab: {fileID: 3278636495363590258, guid: ad364e8d533866d41829065eb2c49878, type: 3}
+  enemyPrefabs: []
+  enemyPrefabResourcePaths: []
+  toughZombieSpawnChance: 0.15
+  toughZombieResourcePath: Enemies/ToughZombie
   spawnRadius: 18
   minSpawnDistanceFromPlayer: 6
   initialMaxAlive: 5

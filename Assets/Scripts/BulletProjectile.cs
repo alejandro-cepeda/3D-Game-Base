@@ -32,6 +32,8 @@ public sealed class BulletProjectile : MonoBehaviour
 
     private TrailRenderer? trail;
     private Collider? col;
+    private float castRadius;
+    private readonly System.Collections.Generic.HashSet<int> hitThisFrame = new System.Collections.Generic.HashSet<int>();
 
     private BulletType bulletType;
 
@@ -50,6 +52,21 @@ public sealed class BulletProjectile : MonoBehaviour
 
         col = GetComponent<Collider>();
         col.isTrigger = true;
+
+        castRadius = 0.15f;
+        if (col is SphereCollider sphere)
+        {
+            castRadius = Mathf.Max(0.01f, sphere.radius * Mathf.Max(transform.lossyScale.x, transform.lossyScale.z));
+        }
+        else if (col is CapsuleCollider capsule)
+        {
+            castRadius = Mathf.Max(0.01f, capsule.radius * Mathf.Max(transform.lossyScale.x, transform.lossyScale.z));
+        }
+        else if (col is BoxCollider box)
+        {
+            Vector3 size = Vector3.Scale(box.size, transform.lossyScale);
+            castRadius = Mathf.Max(0.01f, Mathf.Min(size.x, size.z) * 0.5f);
+        }
 
         remainingArmDelay = armDelaySeconds;
         armed = remainingArmDelay <= 0f;
@@ -162,7 +179,50 @@ public sealed class BulletProjectile : MonoBehaviour
 
     private void FixedUpdate()
     {
-        rb.MovePosition(rb.position + transform.forward * (speed * Time.fixedDeltaTime));
+        hitThisFrame.Clear();
+
+        Vector3 start = rb.position;
+        Vector3 delta = transform.forward * (speed * Time.fixedDeltaTime);
+        float distance = delta.magnitude;
+        if (distance > 0.0001f)
+        {
+            RaycastHit[] hits = Physics.SphereCastAll(start, castRadius, delta.normalized, distance, ~0, QueryTriggerInteraction.Collide);
+            if (hits.Length > 0)
+            {
+                System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+                for (int i = 0; i < hits.Length; i++)
+                {
+                    Collider other = hits[i].collider;
+                    if (other == null)
+                    {
+                        continue;
+                    }
+
+                    if (col != null && other == col)
+                    {
+                        continue;
+                    }
+
+                    if (other.GetComponentInParent<BulletProjectile>() != null)
+                    {
+                        continue;
+                    }
+
+                    int id = other.GetInstanceID();
+                    if (!hitThisFrame.Add(id))
+                    {
+                        continue;
+                    }
+
+                    if (TryHandleHit(other, hits[i].point))
+                    {
+                        return;
+                    }
+                }
+            }
+        }
+
+        rb.MovePosition(start + delta);
 
         if (!armed)
         {
@@ -192,6 +252,26 @@ public sealed class BulletProjectile : MonoBehaviour
             return;
         }
 
+        if (col != null && other == col)
+        {
+            return;
+        }
+
+        if (other.GetComponentInParent<BulletProjectile>() != null)
+        {
+            return;
+        }
+
+        TryHandleHit(other, transform.position);
+    }
+
+    private bool TryHandleHit(Collider other, Vector3 hitPosition)
+    {
+        if (owner != null && other.transform.IsChildOf(owner.transform))
+        {
+            return false;
+        }
+
         if (debugHits)
         {
             Debug.Log($"[Bullet] Hit collider: {other.name} (root: {other.transform.root.name})", this);
@@ -200,16 +280,22 @@ public sealed class BulletProjectile : MonoBehaviour
         Health? health = other.GetComponentInParent<Health>();
         if (!armed && health == null)
         {
-            return;
+            return false;
+        }
+
+        if (health == null && other.isTrigger)
+        {
+            return false;
         }
 
         if (bulletType == BulletType.Explosive)
         {
-            ExplodeAt(transform.position);
+            ExplodeAt(hitPosition);
             Destroy(gameObject);
-            return;
+            return true;
         }
 
+        bool damaged = false;
         if (health != null)
         {
             if (debugHits)
@@ -226,7 +312,12 @@ public sealed class BulletProjectile : MonoBehaviour
                 appliedDamage = Mathf.Max(1, Mathf.RoundToInt(damage * ratio));
             }
 
+            damaged = true;
             health.TakeDamage(appliedDamage);
+            if (debugHits)
+            {
+                Debug.Log($"[Bullet] Damaged {health.name} for {appliedDamage}.", this);
+            }
 
             EnemyStatusEffects? effects = other.GetComponentInParent<EnemyStatusEffects>();
             if (effects != null)
@@ -268,7 +359,7 @@ public sealed class BulletProjectile : MonoBehaviour
             }
         }
 
-        if (health != null)
+        if (damaged)
         {
             int pierceCost = GetPierceCost(other);
 
@@ -278,7 +369,7 @@ public sealed class BulletProjectile : MonoBehaviour
 
                 if (remainingPierces > 0)
                 {
-                    return;
+                    return false;
                 }
             }
         }
@@ -289,6 +380,7 @@ public sealed class BulletProjectile : MonoBehaviour
         }
 
         Destroy(gameObject);
+        return true;
     }
 
     private void ExplodeAt(Vector3 position)

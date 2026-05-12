@@ -130,7 +130,7 @@ MonoBehaviour:
   speed: 35
   lifetimeSeconds: 3
   pierceCount: 0
-  debugHits: 0
+  debugHits: 1
   useTrail: 0
   trailTime: 0.08
   trailStartWidth: 0.05
