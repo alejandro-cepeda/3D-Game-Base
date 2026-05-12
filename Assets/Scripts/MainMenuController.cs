@@ -24,12 +24,54 @@ public class MainMenuController : MonoBehaviour
             cb.highlightedColor = new Color(0.65f, 0.65f, 0.65f, 1f);
             cb.selectedColor = cb.highlightedColor;
             btn.colors = cb;
+
+            // Add haptic feedback for when this button is highlighted
+            EventTrigger trigger = btn.gameObject.GetComponent<EventTrigger>();
+            if (trigger == null) trigger = btn.gameObject.AddComponent<EventTrigger>();
+
+            EventTrigger.Entry selectEntry = new EventTrigger.Entry { eventID = EventTriggerType.Select };
+            selectEntry.callback.AddListener((data) => TriggerMenuTapHaptics());
+            trigger.triggers.Add(selectEntry);
         }
 
         if (firstButton != null && EventSystem.current != null)
         {
             EventSystem.current.SetSelectedGameObject(firstButton.gameObject);
         }
+    }
+
+    private Coroutine? menuHapticsRoutine;
+
+    private void TriggerMenuTapHaptics()
+    {
+#if ENABLE_INPUT_SYSTEM
+        if (UnityEngine.InputSystem.Gamepad.current == null) return;
+        UnityEngine.InputSystem.Gamepad.current.SetMotorSpeeds(0.1f, 0.1f);
+        if (menuHapticsRoutine != null) StopCoroutine(menuHapticsRoutine);
+        menuHapticsRoutine = StartCoroutine(StopMenuHapticsRoutine(0.05f));
+#endif
+    }
+
+    private System.Collections.IEnumerator StopMenuHapticsRoutine(float duration)
+    {
+        yield return new WaitForSecondsRealtime(duration);
+#if ENABLE_INPUT_SYSTEM
+        if (UnityEngine.InputSystem.Gamepad.current != null)
+        {
+            UnityEngine.InputSystem.Gamepad.current.SetMotorSpeeds(0f, 0f);
+        }
+#endif
+        menuHapticsRoutine = null;
+    }
+
+    private void OnDisable()
+    {
+#if ENABLE_INPUT_SYSTEM
+        if (UnityEngine.InputSystem.Gamepad.current != null)
+        {
+            UnityEngine.InputSystem.Gamepad.current.SetMotorSpeeds(0f, 0f);
+        }
+#endif
     }
 
     public void PlayGame()
