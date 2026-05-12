@@ -5,6 +5,10 @@ public sealed class EnemySpawner : MonoBehaviour
 {
     [Header("Base Settings")]
     [SerializeField] private GameObject enemyPrefab = null!;
+    [SerializeField] private GameObject[] enemyPrefabs = System.Array.Empty<GameObject>();
+    [SerializeField] private string[] enemyPrefabResourcePaths = new[] { "Enemies/ToughZombie" };
+    [SerializeField, Range(0f, 1f)] private float toughZombieSpawnChance = 0.15f;
+    [SerializeField] private string toughZombieResourcePath = "Enemies/ToughZombie";
     [SerializeField] private float spawnRadius = 18f;
     [SerializeField] private float minSpawnDistanceFromPlayer = 6f;
 
@@ -22,17 +26,118 @@ public sealed class EnemySpawner : MonoBehaviour
     private float nextSpawnTime;
     private float nextDifficultyIncreaseTime;
 
+    private System.Collections.Generic.List<GameObject> spawnPool = new System.Collections.Generic.List<GameObject>();
+    private GameObject? toughZombiePrefab;
+
     private void Start()
     {
         // Initialize with base values
         currentMaxAlive = initialMaxAlive;
         currentSpawnInterval = initialSpawnInterval;
         nextDifficultyIncreaseTime = Time.time + difficultyIncreaseInterval;
+
+        BuildSpawnPool();
+    }
+
+    private void BuildSpawnPool()
+    {
+        spawnPool.Clear();
+        toughZombiePrefab = null;
+
+        if (enemyPrefab != null)
+        {
+            spawnPool.Add(enemyPrefab);
+        }
+
+        if (enemyPrefabs != null)
+        {
+            for (int i = 0; i < enemyPrefabs.Length; i++)
+            {
+                if (enemyPrefabs[i] != null)
+                {
+                    spawnPool.Add(enemyPrefabs[i]);
+                }
+            }
+        }
+
+        string[] resourcePaths = enemyPrefabResourcePaths;
+        if (resourcePaths == null || resourcePaths.Length == 0)
+        {
+            resourcePaths = new[] { "Enemies/ToughZombie" };
+        }
+
+        if (resourcePaths != null)
+        {
+            for (int i = 0; i < resourcePaths.Length; i++)
+            {
+                string path = resourcePaths[i];
+                if (string.IsNullOrWhiteSpace(path))
+                {
+                    continue;
+                }
+
+                GameObject loaded = Resources.Load<GameObject>(path);
+                if (loaded != null)
+                {
+                    spawnPool.Add(loaded);
+
+                    if (!string.IsNullOrWhiteSpace(toughZombieResourcePath) && path == toughZombieResourcePath)
+                    {
+                        toughZombiePrefab = loaded;
+                    }
+                }
+            }
+        }
+
+        for (int i = spawnPool.Count - 1; i >= 0; i--)
+        {
+            if (spawnPool[i] == null)
+            {
+                spawnPool.RemoveAt(i);
+            }
+        }
+    }
+
+    private GameObject? GetRandomEnemyPrefab()
+    {
+        if (spawnPool.Count == 0)
+        {
+            return null;
+        }
+
+        if (toughZombiePrefab != null && spawnPool.Count > 1)
+        {
+            float chance = Mathf.Clamp01(toughZombieSpawnChance);
+            if (Random.value < chance)
+            {
+                return toughZombiePrefab;
+            }
+
+            for (int i = 0; i < 6; i++)
+            {
+                GameObject candidate = spawnPool[Random.Range(0, spawnPool.Count)];
+                if (candidate != null && candidate != toughZombiePrefab)
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        return spawnPool[Random.Range(0, spawnPool.Count)];
     }
 
     private void Update()
     {
-        if (enemyPrefab == null) return;
+        if (spawnPool.Count == 0)
+        {
+            BuildSpawnPool();
+        }
+
+        GameObject? prefab = GetRandomEnemyPrefab();
+        if (prefab == null)
+        {
+            return;
+        }
 
         // 1. Handle Difficulty Scaling
         if (Time.time >= nextDifficultyIncreaseTime)
@@ -56,7 +161,7 @@ public sealed class EnemySpawner : MonoBehaviour
             return;
         }
 
-        Instantiate(enemyPrefab, spawnPosition.Value, Quaternion.identity);
+        Instantiate(prefab, spawnPosition.Value, Quaternion.identity);
         nextSpawnTime = Time.time + currentSpawnInterval;
     }
 

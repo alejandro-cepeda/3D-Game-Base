@@ -40,6 +40,8 @@ public sealed class EnemyController : MonoBehaviour
         agent = GetComponent<NavMeshAgent>();
         selfHealth = GetComponent<Health>();
 
+        agent.stoppingDistance = Mathf.Min(agent.stoppingDistance, 0.25f);
+
         if (animator == null) animator = GetComponentInChildren<Animator>();
 
         if (GetComponent<EnemyHealthBar>() == null)
@@ -109,6 +111,7 @@ public sealed class EnemyController : MonoBehaviour
         if (target == null || selfHealth == null) return;
 
         HandleProximitySpeed();
+
         agent.SetDestination(target.position);
 
         float distance = Vector3.Distance(transform.position, target.position);
@@ -141,7 +144,12 @@ public sealed class EnemyController : MonoBehaviour
         {
             if (HasParameter(animator, BlendHash))
             {
-                float normalized = sprintSpeed <= 0f ? 0f : Mathf.Clamp(agent.velocity.magnitude / sprintSpeed * 2f, 0f, 2f);
+                float magnitude = agent.desiredVelocity.magnitude;
+                float normalized = walkSpeed <= 0f ? 0f : Mathf.Clamp(magnitude / walkSpeed, 0f, 2f);
+                if (normalized < 0.05f && agent.remainingDistance > agent.stoppingDistance + 0.1f)
+                {
+                    normalized = 1f;
+                }
                 animator.SetFloat(BlendHash, normalized);
             }
         }
@@ -204,7 +212,15 @@ public sealed class EnemyController : MonoBehaviour
     }
     private void OnDamaged(Health health, int damageTaken)
     {
-        if (health.IsDead) return;
+        if (health.IsDead)
+        {
+            return;
+        }
+
+        if (debugAttacks)
+        {
+            Debug.Log($"[{name}] Took damage: {damageTaken}. HP: {health.CurrentHealth}/{health.MaxHealth}", this);
+        }
 
         if (animator != null)
         {
