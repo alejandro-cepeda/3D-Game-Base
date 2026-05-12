@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 
 public class PlayerMovement : MonoBehaviour
 {
@@ -23,12 +24,50 @@ public class PlayerMovement : MonoBehaviour
     private static readonly int VerticalVelocityHash = Animator.StringToHash("VerticalVelocity");
     private static readonly int JumpHash = Animator.StringToHash("Jump");
 
+    private InputAction moveAction;
+    private InputAction jumpAction;
+    private InputAction sprintAction;
+    private InputAction attackAction;
+
     private void Awake()
     {
         if (animator == null)
         {
             animator = GetComponent<Animator>();
         }
+
+        moveAction = new InputAction("Move", binding: "<Gamepad>/leftStick");
+        moveAction.AddCompositeBinding("Dpad")
+            .With("Up", "<Keyboard>/w")
+            .With("Down", "<Keyboard>/s")
+            .With("Left", "<Keyboard>/a")
+            .With("Right", "<Keyboard>/d");
+
+        jumpAction = new InputAction("Jump", binding: "<Keyboard>/space");
+        jumpAction.AddBinding("<Gamepad>/buttonSouth"); // Cross on PlayStation, A on Xbox
+
+        sprintAction = new InputAction("Sprint", binding: "<Keyboard>/leftShift");
+        sprintAction.AddBinding("<Keyboard>/rightShift");
+        sprintAction.AddBinding("<Gamepad>/leftStickPress");
+
+        attackAction = new InputAction("Attack", binding: "<Mouse>/leftButton");
+        attackAction.AddBinding("<Gamepad>/rightTrigger");
+    }
+
+    private void OnEnable()
+    {
+        moveAction.Enable();
+        jumpAction.Enable();
+        sprintAction.Enable();
+        attackAction.Enable();
+    }
+
+    private void OnDisable()
+    {
+        moveAction.Disable();
+        jumpAction.Disable();
+        sprintAction.Disable();
+        attackAction.Disable();
     }
 
     private void Start()
@@ -50,19 +89,19 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
 
-        // Get input from WASD keys
-        float horizontalInput = Input.GetAxis("Horizontal"); // A/D keys
-        float verticalInput = Input.GetAxis("Vertical");     // W/S keys
+        Vector2 moveInput = moveAction.ReadValue<Vector2>();
+        float horizontalInput = moveInput.x;
+        float verticalInput = moveInput.y;
 
         // Calculate movement direction
         Vector3 movement = new Vector3(horizontalInput, 0f, verticalInput);
 
-        bool isSprinting = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+        bool isSprinting = sprintAction.IsPressed();
         float currentSpeed = moveSpeed * (isSprinting ? sprintMultiplier : 1f);
         Vector3 movementDirection = movement.sqrMagnitude > 0f ? movement.normalized : Vector3.zero;
 
         bool isGrounded = IsGrounded();
-        bool jumpPressed = Input.GetKeyDown(KeyCode.Space);
+        bool jumpPressed = jumpAction.WasPressedThisFrame();
 
         if (rb != null)
         {
@@ -109,7 +148,7 @@ public class PlayerMovement : MonoBehaviour
 
         if (faceMouse)
         {
-            bool shouldFaceMouse = !faceMouseOnlyWhileAttacking || Input.GetMouseButton(0);
+            bool shouldFaceMouse = !faceMouseOnlyWhileAttacking || attackAction.IsPressed();
             if (shouldFaceMouse)
             {
                 RotateTowardsMouse();
@@ -147,7 +186,8 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
 
-        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+        Vector2 mousePos = Mouse.current != null ? Mouse.current.position.ReadValue() : new Vector2(Screen.width / 2f, Screen.height / 2f);
+        Ray ray = cam.ScreenPointToRay(mousePos);
         Plane plane = new Plane(Vector3.up, new Vector3(0f, transform.position.y, 0f));
         if (!plane.Raycast(ray, out float enter))
         {
