@@ -109,6 +109,9 @@ private AudioClip? currentGunshotSound;
     private InputAction aimAction;
     private InputAction fireAction;
 
+    private Coroutine? hapticsRoutine;
+    private Health? playerHealth;
+
     private void Update()
     {
         if (Time.timeScale == 0f)
@@ -144,6 +147,8 @@ private AudioClip? currentGunshotSound;
             audioSource = GetComponent<AudioSource>();
         }
 
+        playerHealth = GetComponent<Health>();
+
         aimAction = new InputAction("Aim", binding: "<Gamepad>/rightStick");
         
         fireAction = new InputAction("Fire", binding: "<Mouse>/leftButton");
@@ -154,12 +159,36 @@ private AudioClip? currentGunshotSound;
     {
         aimAction.Enable();
         fireAction.Enable();
+
+        if (playerHealth != null)
+        {
+            playerHealth.Damaged += OnPlayerDamaged;
+        }
     }
 
     private void OnDisable()
     {
         aimAction.Disable();
         fireAction.Disable();
+
+        if (playerHealth != null)
+        {
+            playerHealth.Damaged -= OnPlayerDamaged;
+        }
+
+        if (Gamepad.current != null)
+        {
+            Gamepad.current.SetMotorSpeeds(0f, 0f);
+        }
+    }
+
+    private void OnPlayerDamaged(Health health, int amount)
+    {
+        if (Gamepad.current == null) return;
+        Gamepad.current.SetMotorSpeeds(1.0f, 1.0f); // Rough rumble
+
+        if (hapticsRoutine != null) StopCoroutine(hapticsRoutine);
+        hapticsRoutine = StartCoroutine(StopHapticsRoutine(0.4f));
     }
 
     private void TryAttack(Vector3? controllerAimDirection)
@@ -254,6 +283,7 @@ private AudioClip? currentGunshotSound;
             }
 
             TriggerMuzzleFlash();
+            TriggerGunHaptics();
 
             return;
         }
@@ -657,5 +687,40 @@ private AudioClip? currentGunshotSound;
         {
             audioSource.PlayOneShot(currentGunshotSound);
         }
+        TriggerGunHaptics();
+    }
+
+    private void TriggerGunHaptics()
+    {
+        if (Gamepad.current == null) return;
+
+        float low = 0f;
+        float high = 0f;
+        float duration = 0.1f;
+
+        switch (currentGun)
+        {
+            case WeaponId.Pistol:
+                low = 0.15f; high = 0.3f; duration = 0.1f; break;
+            case WeaponId.AssaultRifle:
+                low = 0.3f; high = 0.6f; duration = 0.12f; break;
+            case WeaponId.Shotgun:
+                low = 0.8f; high = 0.9f; duration = 0.25f; break;
+        }
+
+        Gamepad.current.SetMotorSpeeds(low, high);
+
+        if (hapticsRoutine != null) StopCoroutine(hapticsRoutine);
+        hapticsRoutine = StartCoroutine(StopHapticsRoutine(duration));
+    }
+
+    private IEnumerator StopHapticsRoutine(float duration)
+    {
+        yield return new WaitForSecondsRealtime(duration);
+        if (Gamepad.current != null)
+        {
+            Gamepad.current.SetMotorSpeeds(0f, 0f);
+        }
+        hapticsRoutine = null;
     }
 }

@@ -164,6 +164,12 @@ public sealed class GameManager : MonoBehaviour
     private void OnDisable()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
+#if ENABLE_INPUT_SYSTEM
+        if (UnityEngine.InputSystem.Gamepad.current != null)
+        {
+            UnityEngine.InputSystem.Gamepad.current.SetMotorSpeeds(0f, 0f);
+        }
+#endif
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -899,7 +905,32 @@ public sealed class GameManager : MonoBehaviour
             UpgradeId choice = currentUpgradeChoices[Mathf.Clamp(index, 0, currentUpgradeChoices.Length - 1)];
             tooltipText.text = GetUpgradeDescription(choice);
             tooltipPanel.SetActive(true);
+            TriggerMenuTapHaptics();
         }
+    }
+
+    private Coroutine? menuHapticsRoutine;
+
+    private void TriggerMenuTapHaptics()
+    {
+#if ENABLE_INPUT_SYSTEM
+        if (UnityEngine.InputSystem.Gamepad.current == null) return;
+        UnityEngine.InputSystem.Gamepad.current.SetMotorSpeeds(0.1f, 0.1f);
+        if (menuHapticsRoutine != null) StopCoroutine(menuHapticsRoutine);
+        menuHapticsRoutine = StartCoroutine(StopMenuHapticsRoutine(0.05f));
+#endif
+    }
+
+    private System.Collections.IEnumerator StopMenuHapticsRoutine(float duration)
+    {
+        yield return new WaitForSecondsRealtime(duration);
+#if ENABLE_INPUT_SYSTEM
+        if (UnityEngine.InputSystem.Gamepad.current != null)
+        {
+            UnityEngine.InputSystem.Gamepad.current.SetMotorSpeeds(0f, 0f);
+        }
+#endif
+        menuHapticsRoutine = null;
     }
 
     private void HideTooltip()
