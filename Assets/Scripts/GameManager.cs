@@ -39,6 +39,10 @@ public sealed class GameManager : MonoBehaviour
     [SerializeField] private float widerViewOrthoSizeIncrease = 2.5f;
     [SerializeField] private float widerViewDiminishingMultiplier = 0.75f;
 
+    [Header("Audio")]
+    [SerializeField] [Range(0f, 1f)] private float musicVolume = 0.35f;
+    [SerializeField] [Range(0f, 1f)] private float sfxVolume = 1.0f;
+
     [Header("Controller")]
     [SerializeField] private string openUpgradeMenuButton = "Submit";
     [SerializeField] private string closeUpgradeMenuButton = "Cancel";
@@ -220,6 +224,8 @@ public sealed class GameManager : MonoBehaviour
             bgmSource.loop = true;
             bgmSource.spatialBlend = 0f;
         }
+
+        bgmSource.volume = musicVolume;
 
         string sceneName = SceneManager.GetActiveScene().name;
         string gameplayName = string.IsNullOrWhiteSpace(gameplaySceneName) ? sceneToReload : gameplaySceneName;
@@ -642,6 +648,7 @@ public sealed class GameManager : MonoBehaviour
                 sfxSource.spatialBlend = 0f;
             }
             
+            sfxSource.volume = sfxVolume;
             sfxSource.clip = evilLaugh;
             sfxSource.Play();
 
@@ -1552,6 +1559,10 @@ public sealed class GameManager : MonoBehaviour
         cardImg.color = Color.clear;
 
         Button button = buttonObject.GetComponent<Button>();
+        ColorBlock cb = button.colors;
+        cb.highlightedColor = new Color(0.65f, 0.65f, 0.65f, 1f); // Shaded dark
+        cb.selectedColor = cb.highlightedColor;
+        button.colors = cb;
 
         GameObject textObject = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
         textObject.transform.SetParent(buttonObject.transform, false);
