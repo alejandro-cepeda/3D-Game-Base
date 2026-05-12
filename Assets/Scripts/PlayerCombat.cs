@@ -1,6 +1,7 @@
 using UnityEngine;
 using System;
 using System.Collections;
+using UnityEngine.InputSystem;
 
 public sealed class PlayerCombat : MonoBehaviour
 {
@@ -105,6 +106,9 @@ private AudioClip? currentGunshotSound;
 
     private GameObject? currentWeaponVisual;
 
+    private InputAction aimAction;
+    private InputAction fireAction;
+
     private void Update()
     {
         if (Time.timeScale == 0f)
@@ -112,9 +116,9 @@ private AudioClip? currentGunshotSound;
             return;
         }
 
-        Vector2 aim = new Vector2(Input.GetAxisRaw(aimHorizontalAxis), Input.GetAxisRaw(aimVerticalAxis));
+        Vector2 aim = aimAction.ReadValue<Vector2>();
         bool controllerAiming = aim.sqrMagnitude >= aimDeadzone * aimDeadzone;
-        bool wantsFire = Input.GetMouseButton(0) || (controllerAiming && Input.GetButton(controllerFireButton));
+        bool wantsFire = fireAction.IsPressed();
         if (wantsFire)
         {
             TryAttack(controllerAiming ? new Vector3(aim.x, 0f, aim.y).normalized : (Vector3?)null);
@@ -139,6 +143,23 @@ private AudioClip? currentGunshotSound;
         {
             audioSource = GetComponent<AudioSource>();
         }
+
+        aimAction = new InputAction("Aim", binding: "<Gamepad>/rightStick");
+        
+        fireAction = new InputAction("Fire", binding: "<Mouse>/leftButton");
+        fireAction.AddBinding("<Gamepad>/rightTrigger");
+    }
+
+    private void OnEnable()
+    {
+        aimAction.Enable();
+        fireAction.Enable();
+    }
+
+    private void OnDisable()
+    {
+        aimAction.Disable();
+        fireAction.Disable();
     }
 
     private void TryAttack(Vector3? controllerAimDirection)
@@ -166,7 +187,8 @@ private AudioClip? currentGunshotSound;
             Camera? aimCamera = Camera.main;
             if (controllerAimDirection == null && gunAimUsesMouse && aimCamera != null)
             {
-                Ray aimRay = aimCamera.ScreenPointToRay(Input.mousePosition);
+                Vector2 mousePos = Mouse.current != null ? Mouse.current.position.ReadValue() : new Vector2(Screen.width / 2f, Screen.height / 2f);
+                Ray aimRay = aimCamera.ScreenPointToRay(mousePos);
 
                 Vector3 aimDirection = aimRay.direction;
 
@@ -243,7 +265,8 @@ private AudioClip? currentGunshotSound;
         Ray ray;
         if (camera != null)
         {
-            ray = aimAtMousePosition ? camera.ScreenPointToRay(Input.mousePosition) : camera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+            Vector2 mousePos = Mouse.current != null ? Mouse.current.position.ReadValue() : new Vector2(Screen.width / 2f, Screen.height / 2f);
+            ray = aimAtMousePosition ? camera.ScreenPointToRay(mousePos) : camera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
         }
         else
         {

@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(PlayerCombat))]
 public sealed class PlayerLaserSight : MonoBehaviour
@@ -13,11 +14,14 @@ public sealed class PlayerLaserSight : MonoBehaviour
     private PlayerCombat combat = null!;
     private LineRenderer line = null!;
     private static Material? lineMaterial;
+    private InputAction aimAction;
 
     public bool IsEnabled { get; private set; }
 
     private void Awake()
     {
+        aimAction = new InputAction("Aim", binding: "<Gamepad>/rightStick");
+
         combat = GetComponent<PlayerCombat>();
 
         line = gameObject.GetComponent<LineRenderer>();
@@ -56,6 +60,16 @@ public sealed class PlayerLaserSight : MonoBehaviour
         SetEnabled(enabledOnStart);
     }
 
+    private void OnEnable()
+    {
+        aimAction?.Enable();
+    }
+
+    private void OnDisable()
+    {
+        aimAction?.Disable();
+    }
+
     private void LateUpdate()
     {
         if (!IsEnabled || Time.timeScale == 0f)
@@ -78,18 +92,27 @@ public sealed class PlayerLaserSight : MonoBehaviour
         Vector3 origin = muzzle.position;
         Vector3 direction = muzzle.forward;
 
-        Camera? cam = Camera.main;
-        if (cam != null)
+        Vector2 controllerAim = aimAction != null ? aimAction.ReadValue<Vector2>() : Vector2.zero;
+        if (controllerAim.sqrMagnitude > 0.05f)
         {
-            Ray mouseRay = cam.ScreenPointToRay(Input.mousePosition);
-            Plane plane = new Plane(Vector3.up, origin);
-            if (plane.Raycast(mouseRay, out float enter))
+            direction = new Vector3(controllerAim.x, 0f, controllerAim.y).normalized;
+        }
+        else
+        {
+            Camera? cam = Camera.main;
+            if (cam != null)
             {
-                Vector3 pointOnPlane = mouseRay.GetPoint(enter);
-                Vector3 dirToMouse = pointOnPlane - origin;
-                if (dirToMouse.sqrMagnitude > 0.0001f)
+                Vector2 mousePos = Mouse.current != null ? Mouse.current.position.ReadValue() : new Vector2(Screen.width / 2f, Screen.height / 2f);
+                Ray mouseRay = cam.ScreenPointToRay(mousePos);
+                Plane plane = new Plane(Vector3.up, origin);
+                if (plane.Raycast(mouseRay, out float enter))
                 {
-                    direction = dirToMouse.normalized;
+                    Vector3 pointOnPlane = mouseRay.GetPoint(enter);
+                    Vector3 dirToMouse = pointOnPlane - origin;
+                    if (dirToMouse.sqrMagnitude > 0.0001f)
+                    {
+                        direction = dirToMouse.normalized;
+                    }
                 }
             }
         }

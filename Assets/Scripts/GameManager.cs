@@ -118,12 +118,33 @@ public sealed class GameManager : MonoBehaviour
     }
     private void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Tab) || Input.GetButtonDown(openUpgradeMenuButton))
+        bool openMenu = false;
+        bool closeMenu = false;
+
+#if ENABLE_INPUT_SYSTEM
+        if (UnityEngine.InputSystem.Keyboard.current != null)
+        {
+            if (UnityEngine.InputSystem.Keyboard.current.tabKey.wasPressedThisFrame) openMenu = true;
+            if (UnityEngine.InputSystem.Keyboard.current.escapeKey.wasPressedThisFrame) closeMenu = true;
+        }
+        if (UnityEngine.InputSystem.Gamepad.current != null)
+        {
+            // Typically Select/View opens menus, Start/Menu or B/Circle closes them
+            if (UnityEngine.InputSystem.Gamepad.current.selectButton.wasPressedThisFrame) openMenu = true;
+            if (UnityEngine.InputSystem.Gamepad.current.startButton.wasPressedThisFrame) closeMenu = true;
+            if (UnityEngine.InputSystem.Gamepad.current.buttonEast.wasPressedThisFrame) closeMenu = true; 
+        }
+#else
+        if (Input.GetKeyDown(KeyCode.Tab) || Input.GetButtonDown(openUpgradeMenuButton)) openMenu = true;
+        if (Input.GetKeyDown(KeyCode.Escape) || Input.GetButtonDown(closeUpgradeMenuButton)) closeMenu = true;
+#endif
+
+        if (openMenu)
         {
             TryOpenUpgradeChoice();
         }
 
-        if (Input.GetKeyDown(KeyCode.Escape) || Input.GetButtonDown(closeUpgradeMenuButton))
+        if (closeMenu)
         {
             if (upgradePanel != null && upgradePanel.activeSelf)
             {
@@ -131,22 +152,6 @@ public sealed class GameManager : MonoBehaviour
                 Time.timeScale = 1f;
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
-            }
-        }
-
-        if (upgradePanel != null && upgradePanel.activeSelf)
-        {
-            if (Input.GetButtonDown(upgradeChoice1Button))
-            {
-                ApplyUpgrade(0);
-            }
-            else if (Input.GetButtonDown(upgradeChoice2Button))
-            {
-                ApplyUpgrade(1);
-            }
-            else if (Input.GetButtonDown(upgradeChoice3Button))
-            {
-                ApplyUpgrade(2);
             }
         }
     }
@@ -292,6 +297,11 @@ public sealed class GameManager : MonoBehaviour
         if (upgradePanel != null)
         {
             upgradePanel.SetActive(true);
+            Transform? firstButton = upgradePanel.transform.Find("Upgrade0");
+            if (firstButton != null && EventSystem.current != null)
+            {
+                EventSystem.current.SetSelectedGameObject(firstButton.gameObject);
+            }
         }
 
         Cursor.lockState = CursorLockMode.None;
@@ -573,6 +583,20 @@ public sealed class GameManager : MonoBehaviour
         Transform? buttonTransform = upgradePanel?.transform.Find($"Upgrade{index}");
         if (buttonTransform == null) return;
         RectTransform buttonRect = buttonTransform.GetComponent<RectTransform>();
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(buttonRect, data.position, data.pressEventCamera, out Vector2 localPoint);
+        ApplyUpgradeWithEffect(index, localPoint);
+    }
+
+    private void ApplyUpgradeWithEffect(int index, BaseEventData data)
+    {
+        ApplyUpgradeWithEffect(index, Vector2.zero);
+    }
+
+    private void ApplyUpgradeWithEffect(int index, Vector2 localPoint)
+    {
+        Transform? buttonTransform = upgradePanel?.transform.Find($"Upgrade{index}");
+        if (buttonTransform == null) return;
+        RectTransform buttonRect = buttonTransform.GetComponent<RectTransform>();
 
         PlayerCombat? combat = FindFirstObjectByType<PlayerCombat>();
         if (combat != null)
@@ -580,7 +604,6 @@ public sealed class GameManager : MonoBehaviour
             combat.PlayGunshotSoundUI();
         }
 
-        RectTransformUtility.ScreenPointToLocalPointInRectangle(buttonRect, data.position, data.pressEventCamera, out Vector2 localPoint);
         GameObject holeObj = new GameObject("BulletHole", typeof(RectTransform), typeof(Image));
         holeObj.transform.SetParent(buttonRect, false);
         holeObj.transform.SetAsLastSibling();
@@ -1529,6 +1552,18 @@ public sealed class GameManager : MonoBehaviour
         EventTrigger.Entry exitEntry = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
         exitEntry.callback.AddListener((data) => HideTooltip());
         trigger.triggers.Add(exitEntry);
+
+        EventTrigger.Entry selectEntry = new EventTrigger.Entry { eventID = EventTriggerType.Select };
+        selectEntry.callback.AddListener((data) => ShowTooltip(index));
+        trigger.triggers.Add(selectEntry);
+
+        EventTrigger.Entry deselectEntry = new EventTrigger.Entry { eventID = EventTriggerType.Deselect };
+        deselectEntry.callback.AddListener((data) => HideTooltip());
+        trigger.triggers.Add(deselectEntry);
+
+        EventTrigger.Entry submitEntry = new EventTrigger.Entry { eventID = EventTriggerType.Submit };
+        submitEntry.callback.AddListener((data) => ApplyUpgradeWithEffect(index, data));
+        trigger.triggers.Add(submitEntry);
     }
 
     private Canvas FindOrCreateHudCanvas()
